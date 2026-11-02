@@ -12,7 +12,7 @@ app.get("/", (req, res) => {
     res.send("Hello Dari Server!");
 });
 
-app.get("/api/katalog", (req, res) => {
+app.get("/api/products", (req, res) => {
     const produk = [
         {
             id: 1, 
@@ -20,9 +20,13 @@ app.get("/api/katalog", (req, res) => {
             harga: 5000 
         },
         {
-            id: 5, 
+            id: 2, 
             nama: "Chooper", 
             harga: 7000 
+        },
+        {   id: 3,
+            nama: "BritishStyle",
+            harga: 6000
         }
     ];
 

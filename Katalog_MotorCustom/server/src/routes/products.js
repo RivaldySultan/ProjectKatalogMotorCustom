@@ -30,23 +30,22 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("image/")) {
-      const allowed = /jpeg|jpg|png |webpp|gif/;
+      const allowed = /jpeg|jpg|png|webp|gif/;
       const ext = path.extname(file.originalname).toLowerCase();
-      ext.toLowerCase();
       const mime = file.mimetype.toLowerCase();
       if (ext && allowed.test(ext) && mime && allowed.test(mime)) {
-        cb(null, true);
+        return cb(null, true);
       }
-      cb(new Error("Only image files are allowed!"));
     }
+    return cb(new Error("Only image files are allowed!"));
   },
 });
 
 const router = express.Router();
 
 router.get("/", (req, res) => {
-  const { categryId, search, stockStatus } = req.query;
-  const products = db.getProducts({ categryId, search, stockStatus });
+  const { categoryId, search, stockStatus } = req.query;
+  const products = db.getProducts({ categoryId, search, stockStatus });
   res.json({
     success: true,
     count: products.length,
@@ -69,9 +68,9 @@ router.get("/:id", (req, res) => {
 });
 
 router.post("/", authenticateToken, upload.single("image"), (req, res) => {
-  const { name, price, stockStatus, categoryId, description, imageurl } =
-    req.body;
-  if (!name || name.trim()) {
+  const { name, price, stockStatus, categoryId, description, imageurl } = req.body;
+  
+  if (!name || !name.trim()) {
     return res.status(400).json({
       success: false,
       message: "Product name is required",
@@ -113,8 +112,7 @@ router.post("/", authenticateToken, upload.single("image"), (req, res) => {
 
 router.put("/:id", authenticateToken, upload.single("image"), (req, res) => {
   const { id } = req.params;
-  const { name, price, stockStatus, categoryId, description, imageurl } =
-    req.body;
+  const { name, price, stockStatus, categoryId, description, imageurl } = req.body;
 
   const exsisting = db.getProductById(id);
   if (!exsisting) {
