@@ -39,14 +39,14 @@ app.use("/api/stores", storeRoutes);
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    app: "KatalogSepatuSuper API",
+    app: "KatalogMotorCustom API",
     timestamp: new Date().toISOString(),
   });
 });
 
 app.get("/", (req, res) => {
   res.json({
-    message: "Welcome to KatalogSepatuSuper API",
+    message: "Welcome to KatalogMotorCustom API",
     endpoints: {
       auth: "/api/auth",
       categories: "/api/categories",
@@ -59,6 +59,6 @@ app.get("/", (req, res) => {
 
 app.listen(port, () => {
   console.log(
-    `Server KatalogSepatuSuper is running on http://localhost:${port}`,
+    `Server KatalogMotorCustom is running on http://localhost:${port}`,
   );
 });

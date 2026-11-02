@@ -14,15 +14,21 @@ app.get("/api/products", (req, res) => {
   const products = [
     {
       id: 1,
-      name: "Sepatu Nike",
-      price: 500000,
-      description: "This is a high-quality Nike shoe.",
+      name: "Thunder",
+      price: 1500000,
+      description: "Cafe Racer style motorcycle.",
     },
     {
       id: 2,
-      name: "Sepatu Adidas",
-      price: 400000,
-      description: "This is a high-quality Adidas shoe.",
+      name: "Scorpio",
+      price: 1800000,
+      description: "Chooper style motorcycle.",
+    },
+    {
+      id: 3,
+      name: "Tiger",
+      price: 2000000,
+      description: "British Style motorcycle.",
     },
   ];
 
