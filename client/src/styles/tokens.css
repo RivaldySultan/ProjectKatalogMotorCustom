@@ -1,0 +1,118 @@
+:root {
+  /* ------------------------------------------------------------------
+     RUKA MOTORWORKS — DESIGN TOKENS
+     Referensi: Panduan UI & Handoff (Figma), frame 33:4064.
+     Prefix --rm- dipakai agar tidak bertabrakan dengan variabel lama
+     di App.css selama migrasi bertahap.
+     ------------------------------------------------------------------ */
+
+  /* Warna inti — industrial */
+  --rm-color-garage: #111111;
+  --rm-color-panel: #1a1a1a;
+  --rm-color-raised: #222222;
+  --rm-color-ivory: #f4f4f0;
+  --rm-color-brick: #a84432;
+  --rm-color-brick-hover: #bd503b;
+  --rm-color-silver: #c2c5c7;
+  --rm-color-muted: #a6a6a2;
+  --rm-color-rule: #393939;
+  --rm-color-error: #ef8d7e;
+  --rm-color-disabled: #666666;
+
+  /* Warna editorial — section terang Beranda */
+  --rm-color-paper: #f1ede4;
+  --rm-color-paper-ink: #191a18;
+  --rm-color-paper-muted: #696c62;
+  --rm-color-paper-line: #d0ccc1;
+  --rm-color-paper-panel: #e7e2d8;
+  --rm-color-cream: #faf7ef;
+  --rm-color-olive: #b0b1a7;
+
+  /* Token semantik — tema industrial (default) */
+  --rm-bg: var(--rm-color-garage);
+  --rm-surface: var(--rm-color-panel);
+  --rm-surface-raised: var(--rm-color-raised);
+  --rm-text: var(--rm-color-ivory);
+  --rm-text-muted: var(--rm-color-muted);
+  --rm-border: var(--rm-color-rule);
+  --rm-accent: var(--rm-color-brick);
+  --rm-accent-hover: var(--rm-color-brick-hover);
+  --rm-accent-contrast: var(--rm-color-ivory);
+  --rm-focus: var(--rm-color-silver);
+  --rm-danger: var(--rm-color-error);
+  --rm-disabled: var(--rm-color-disabled);
+
+  /* Tipografi */
+  --rm-font-display: 'Oswald', 'Arial Narrow', Impact, sans-serif;
+  --rm-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --rm-font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas,
+    monospace;
+
+  --rm-fs-display-xl: clamp(3.5rem, 7.2vw, 6.5rem);
+  --rm-fs-display: clamp(3.5rem, 5.3vw, 4.75rem);
+  --rm-fs-h1: clamp(2.25rem, 3.4vw, 3rem);
+  --rm-fs-h2: clamp(2.25rem, 3.1vw, 2.75rem);
+  --rm-fs-h3: 1.75rem;
+  --rm-fs-body: 1rem;
+  --rm-fs-body-sm: 0.875rem;
+  --rm-fs-meta: 0.6875rem;
+  --rm-fs-meta-xs: 0.625rem;
+  --rm-lh-display: 1.12;
+  --rm-lh-body: 1.65;
+
+  /* Spacing — skala 8pt */
+  --rm-space-1: 4px;
+  --rm-space-2: 8px;
+  --rm-space-3: 16px;
+  --rm-space-4: 24px;
+  --rm-space-5: 32px;
+  --rm-space-6: 48px;
+  --rm-space-7: 64px;
+  --rm-space-8: 80px;
+  --rm-space-9: 96px;
+
+  /* Layout */
+  --rm-container: 1312px;
+  --rm-page-max: 1440px;
+  --rm-margin: 64px;
+  --rm-gutter: 24px;
+  --rm-header-h: 92px;
+
+  /* Kontrol & motion */
+  --rm-control-h: 48px;
+  --rm-radius: 2px;
+  --rm-border-w: 1px;
+  --rm-transition: 180ms ease;
+  --rm-z-header: 100;
+  --rm-z-skip: 999;
+}
+
+/* Tema editorial untuk section terang di Beranda */
+.theme-editorial {
+  --rm-bg: var(--rm-color-paper);
+  --rm-surface: var(--rm-color-paper-panel);
+  --rm-surface-raised: var(--rm-color-cream);
+  --rm-text: var(--rm-color-paper-ink);
+  --rm-text-muted: var(--rm-color-paper-muted);
+  --rm-border: var(--rm-color-paper-line);
+  --rm-accent-contrast: var(--rm-color-cream);
+}
+
+@media (max-width: 1199px) {
+  :root {
+    --rm-margin: 32px;
+  }
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --rm-header-h: 80px;
+  }
+}
+
+@media (max-width: 833px) {
+  :root {
+    --rm-margin: 20px;
+    --rm-gutter: 16px;
+  }
+}

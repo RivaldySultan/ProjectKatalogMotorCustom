@@ -1,0 +1,74 @@
+.rm-button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--rm-radius);
+  display: inline-flex;
+  font-family: var(--rm-font-body);
+  font-size: 13px;
+  font-weight: 600;
+  gap: 24px;
+  height: var(--rm-control-h);
+  justify-content: space-between;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  padding: 0 20px;
+  text-decoration: none;
+  transition:
+    background-color var(--rm-transition),
+    border-color var(--rm-transition),
+    color var(--rm-transition);
+  white-space: nowrap;
+}
+
+.rm-button__icon {
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.rm-button--primary {
+  background: var(--rm-accent);
+  border-color: var(--rm-accent);
+  color: var(--rm-accent-contrast);
+}
+
+.rm-button--primary:hover {
+  background: var(--rm-accent-hover);
+  border-color: var(--rm-accent-hover);
+}
+
+.rm-button--outline {
+  background: transparent;
+  border-color: var(--rm-border);
+  color: var(--rm-text);
+}
+
+.rm-button--outline:hover {
+  border-color: var(--rm-focus);
+  color: var(--rm-text);
+}
+
+.rm-button--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--rm-text-muted);
+  padding-inline: 0;
+}
+
+.rm-button--ghost:hover {
+  color: var(--rm-text);
+}
+
+.rm-button--sm {
+  font-size: 12px;
+  gap: 16px;
+  height: 40px;
+  padding: 0 14px;
+}
+
+.rm-button:disabled {
+  background: var(--rm-surface-raised);
+  border-color: var(--rm-border);
+  color: var(--rm-disabled);
+  cursor: not-allowed;
+}

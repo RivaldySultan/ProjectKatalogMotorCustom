@@ -1,0 +1,11 @@
+.rm-site {
+  background: var(--rm-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: clip;
+}
+
+.rm-site > main {
+  flex: 1;
+}

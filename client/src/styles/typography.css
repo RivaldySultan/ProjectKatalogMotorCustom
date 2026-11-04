@@ -1,0 +1,86 @@
+/*
+  Skala tipografi RUKA.
+  Display: Oswald 600 — uppercase, rapat, tegas.
+  Body: Inter — 14–16px, line-height 1.6–1.65.
+  Metadata: IBM Plex Mono — 10–11px, tracking 1px.
+*/
+
+.rm-display-xl,
+.rm-display,
+.rm-h1,
+.rm-h2,
+.rm-h3 {
+  font-family: var(--rm-font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.rm-display-xl {
+  font-size: var(--rm-fs-display-xl);
+  line-height: 1.02;
+}
+
+.rm-display {
+  font-size: var(--rm-fs-display);
+  line-height: var(--rm-lh-display);
+}
+
+.rm-h1 {
+  font-size: var(--rm-fs-h1);
+  line-height: var(--rm-lh-display);
+}
+
+.rm-h2 {
+  font-size: var(--rm-fs-h2);
+  line-height: var(--rm-lh-display);
+}
+
+.rm-h3 {
+  font-size: var(--rm-fs-h3);
+  line-height: 1.2;
+}
+
+.rm-body {
+  font-family: var(--rm-font-body);
+  font-size: var(--rm-fs-body);
+  font-weight: 400;
+  line-height: var(--rm-lh-body);
+}
+
+.rm-body-sm {
+  font-family: var(--rm-font-body);
+  font-size: var(--rm-fs-body-sm);
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.rm-meta,
+.rm-meta-xs {
+  font-family: var(--rm-font-mono);
+  font-weight: 400;
+  letter-spacing: 1px;
+  line-height: 1.6;
+  text-transform: uppercase;
+}
+
+.rm-meta {
+  font-size: var(--rm-fs-meta);
+}
+
+.rm-meta-xs {
+  font-size: var(--rm-fs-meta-xs);
+}
+
+.rm-eyebrow {
+  align-items: center;
+  color: var(--rm-text-muted);
+  display: flex;
+  font-family: var(--rm-font-mono);
+  font-size: var(--rm-fs-meta);
+  gap: 10px;
+  letter-spacing: 0.1em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}

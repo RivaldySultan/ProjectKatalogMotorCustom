@@ -1,0 +1,62 @@
+{
+  "settings": {
+    "storeName": "MotorCustom",
+    "tagline": "Motor custom yang dirancang sesuai karakter Anda",
+    "address": "123 Main St, Anytown, USA",
+    "phone": "555-1234",
+    "currency": "Rp.",
+    "activeWhatsApp": true
+  },
+  "categories": [
+    {
+      "id": "cat_1",
+      "name": "Café Racer",
+      "slug": "cafe-racer"
+    },
+    {
+      "id": "cat_2",
+      "name": "Chopper",
+      "slug": "chopper"
+    },
+    {
+      "id": "cat_3",
+      "name": "British Style",
+      "slug": "british-style"
+    }
+  ],
+  "products": [
+    {
+      "id": "prod_1",
+      "name": "Thunder",
+      "categoryId": "cat_1",
+      "categoryName": "CafeRacer",
+      "price": 10000000,
+      "stockStatus": 10,
+      "description": "Cafe Racer style motorcycle.",
+      "image": "CafeRacer_motorcycle.jpg",
+      "createdAt": "2024-06-01T10:00:00Z"
+    },
+    {
+      "id": "prod_2",
+      "name": "Scorpio",
+      "categoryId": "cat_2",
+      "categoryName": "Chooper",
+      "price": 18000000,
+      "stockStatus": 5,
+      "description": "Chopper style motorcycle.",
+      "image": "Chooper_motorcycle.jpg",
+      "createdAt": "2024-06-02T11:30:00Z"
+    },
+    {
+      "id": "prod_3",
+      "name": "Tiger",
+      "categoryId": "cat_3",
+      "categoryName": "BritishStyle",
+      "price": 14000000,
+      "stockStatus": 8,
+      "description": "British Style style motorcycle.",
+      "image": "britishstyle_motorcycle.jpg",
+      "createdAt": "2024-06-03T09:15:00Z"
+    }
+  ]
+}
