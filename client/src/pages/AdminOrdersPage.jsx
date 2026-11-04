@@ -31,6 +31,29 @@ function getBuildName(request) {
     || 'Build belum ditentukan';
 }
 
+function getReferenceMotor(consultation) {
+  if (consultation.referenceMotorSelected === 1) {
+    if (!consultation.referenceMotorId && !consultation.referenceMotorName) return null;
+    return {
+      name: consultation.referenceMotorBuildName
+        || consultation.referenceMotorName
+        || 'Motor referensi',
+      basis: consultation.referenceMotorBasis || '',
+      image: consultation.referenceMotorImage || '',
+    };
+  }
+
+  if (consultation.productId || consultation.productName) {
+    return {
+      name: getBuildName(consultation),
+      basis: consultation.basis || '',
+      image: '',
+    };
+  }
+
+  return null;
+}
+
 function getAdminError(result, fallback) {
   if (result.unauthorized) {
     clearAdminSession();
@@ -361,6 +384,7 @@ function ConsultationDetailPage({ id }) {
   };
 
   const whatsappUrl = getWhatsAppLink(WHATSAPP_MESSAGE);
+  const referenceMotor = consultation ? getReferenceMotor(consultation) : null;
 
   return (
     <AdminLayout active="orders">
@@ -443,6 +467,18 @@ function ConsultationDetailPage({ id }) {
               <h2 id="rm-admin-build-title">MOTOR YANG DIMINATI</h2>
               <dl className="rm-admin-order-detail__fields">
                 <div><dt>Nama produk / build</dt><dd>{getBuildName(consultation)}</dd></div>
+                <div>
+                  <dt>Motor referensi konsultasi</dt>
+                  <dd>
+                    {referenceMotor
+                      ? referenceMotor.name
+                      : 'Belum menentukan / konsultasi terlebih dahulu'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Basis motor referensi</dt>
+                  <dd>{referenceMotor?.basis || 'Tidak tersedia'}</dd>
+                </div>
                 <div><dt>Basis motor</dt><dd>{consultation.basis || 'Tidak tersedia'}</dd></div>
                 <div><dt>Kategori custom</dt><dd>{consultation.categoryName || 'Tidak tersedia'}</dd></div>
                 <div>
@@ -450,6 +486,16 @@ function ConsultationDetailPage({ id }) {
                   <dd>{consultation.price == null ? 'Tidak tersedia' : formatRupiah(consultation.price)}</dd>
                 </div>
               </dl>
+              {referenceMotor?.image ? (
+                <div className="rm-admin-order-detail__reference">
+                  <img
+                    alt={`Foto referensi ${referenceMotor.name}`}
+                    loading="lazy"
+                    src={referenceMotor.image}
+                  />
+                  <span>Snapshot katalog saat permintaan dibuat</span>
+                </div>
+              ) : null}
             </section>
 
             <section aria-labelledby="rm-admin-requirements-title" className="rm-admin-panel">

@@ -60,6 +60,18 @@ export function getProductBasis(product) {
     || '';
 }
 
+export function isProductActive(product) {
+  return String(product?.stockStatus || '').trim().toLowerCase() === 'tersedia';
+}
+
+export function getActiveProducts(products) {
+  return (Array.isArray(products) ? products : []).filter(isProductActive);
+}
+
+export function getProductDisplayName(product) {
+  return getProductBuildName(product) || product?.name || '';
+}
+
 export function getCategoryKey(product) {
   const category = `${product.categoryName || ''} ${product.categoryId || ''}`
     .normalize('NFD')

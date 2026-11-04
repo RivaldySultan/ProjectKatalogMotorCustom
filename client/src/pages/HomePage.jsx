@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import HeroCarousel from '../components/catalog/HeroCarousel';
 import ProductCard from '../components/catalog/ProductCard';
 import Icon from '../components/ui/Icon';
 import Link from '../components/ui/Link';
@@ -17,122 +18,121 @@ const STYLES = [
     number: '01',
     name: 'Café Racer',
     basis: 'Suzuki Thunder',
-    quality: 'Rendah. Ringkas. Fokus.',
-    description: 'Siluet merunduk, garis tangki tegas, dan semangat balap jalanan klasik.',
+    quality: 'Low. Compact. Focused.',
+    description: 'A crouched silhouette, crisp tank lines, and the spirit of classic street racing.',
   },
   {
     id: 'chopper',
     number: '02',
     name: 'Chopper',
     basis: 'Yamaha Scorpio',
-    quality: 'Panjang. Bebas. Berani.',
-    description: 'Rake memanjang, jok rendah, dan posisi berkendara yang lebih santai.',
+    quality: 'Long. Free. Bold.',
+    description: 'Extended rake, a low seat, and a more relaxed riding position.',
   },
   {
     id: 'british-style',
     number: '03',
     name: 'British Style',
     basis: 'Honda Tiger',
-    quality: 'Tenang. Klasik. Bersahaja.',
-    description: 'Proporsi klasik, tangki membulat, dan detail yang tak lekang zaman.',
+    quality: 'Calm. Classic. Understated.',
+    description: 'Classic proportions, a rounded tank, and details that never age.',
   },
 ];
 
 const BUILD_DETAILS = [
   {
     number: '01',
-    title: 'Tangki berkarakter',
-    description: 'Finishing brushed metal, bentuk ramping, garis visual tegas.',
+    title: 'A tank with character',
+    description: 'Brushed metal finish, a slim shape, and confident visual lines.',
   },
   {
     number: '02',
-    title: 'Postur yang terarah',
-    description: 'Clip-on bar dan jok tunggal membentuk siluet merunduk.',
+    title: 'A purposeful posture',
+    description: 'Clip-on bars and a single seat create the crouched silhouette.',
   },
   {
     number: '03',
-    title: 'Mesin sebagai pusat desain',
-    description: 'Basis Suzuki Thunder tetap menjadi jantung karakter build.',
+    title: 'The engine at the center',
+    description: 'The Suzuki Thunder platform remains the heart of the build.',
   },
 ];
 
 const WORKSHOP_VALUES = [
-  'Proporsi lebih dulu',
-  'Fungsi tetap utama',
-  'Detail tanpa berlebih',
+  'Proportion comes first',
+  'Function stays essential',
+  'Detail without excess',
 ];
 
 const PROCESS_STEPS = [
   {
     number: '01',
-    title: 'Pilih arah',
-    description: 'Jelajahi katalog. Simpan gaya, bentuk, atau detail yang paling kamu suka.',
+    title: 'Choose a direction',
+    description: 'Browse the catalog. Save the style, shape, or details you like most.',
     link: '/katalog',
-    linkLabel: 'Katalog & referensi',
+    linkLabel: 'Catalog & references',
   },
   {
     number: '02',
-    title: 'Duduk bersama',
-    description: 'Bahas motor donor, kebutuhan berkendara, serta kisaran anggaranmu.',
+    title: 'Sit down together',
+    description: 'Talk through your donor bike, riding needs, and budget range.',
     link: 'consultation',
-    linkLabel: 'Konsultasi awal',
+    linkLabel: 'Initial consultation',
   },
   {
     number: '03',
-    title: 'Sepakati rencana',
-    description: 'Tinjau konsep, lingkup pekerjaan, estimasi biaya, dan jadwal sebelum mulai.',
+    title: 'Agree on the plan',
+    description: 'Review the concept, scope of work, cost estimate, and schedule before we begin.',
     link: 'consultation',
-    linkLabel: 'Konsep & estimasi',
+    linkLabel: 'Concept & estimate',
   },
   {
     number: '04',
-    title: 'Wujudkan build',
-    description: 'Fabrikasi, perakitan, finishing, lalu pemeriksaan dan penyesuaian akhir.',
+    title: 'Bring the build to life',
+    description: 'Fabrication, assembly, finishing, then final inspection and adjustments.',
     link: 'consultation',
-    linkLabel: 'Pengerjaan & serah terima',
+    linkLabel: 'Build & handover',
   },
 ];
 
 const PERSONALIZATION = [
   {
-    title: 'Warna & finish',
-    description: 'Pilih nuansa tangki dan karakter permukaan yang ingin ditonjolkan.',
+    title: 'Color & finish',
+    description: 'Choose the tank tone and surface character you want to highlight.',
     detail: 'Solid / Metallic / Raw finish',
   },
   {
-    title: 'Jok & jahitan',
-    description: 'Sesuaikan bentuk, material pelapis, dan pola jahitan dengan gaya build.',
+    title: 'Seat & stitching',
+    description: 'Adjust the shape, upholstery material, and stitching pattern to suit the build.',
     detail: 'Tan / Tobacco / Black',
   },
   {
-    title: 'Posisi berkendara',
-    description: 'Diskusikan setang, jok, dan footstep agar posturnya terasa pas.',
+    title: 'Riding position',
+    description: 'Discuss handlebars, seat, and footpegs so the posture feels just right.',
     detail: 'Clip-on / Upright / High bar',
   },
   {
-    title: 'Detail personal',
-    description: 'Lampu, spakbor, dan aksen kecil yang membuat motormu terasa milikmu.',
-    detail: 'Fungsional, bukan berlebihan',
+    title: 'Personal details',
+    description: 'Lights, fenders, and small accents that make the bike feel truly yours.',
+    detail: 'Functional, never excessive',
   },
 ];
 
 const FAQS = [
   {
-    question: 'Bisa pakai motor donor sendiri?',
-    answer: 'Bisa dibahas. Kondisi mesin, rangka, kelengkapan, dan dokumen motor donor perlu ditinjau sebelum konsep ditentukan.',
+    question: 'Can I use my own donor bike?',
+    answer: 'Absolutely — let\'s discuss it. Engine condition, frame, completeness, and paperwork need to be reviewed before we settle on a concept.',
   },
   {
-    question: 'Berapa biaya dan lama pengerjaannya?',
-    answer: 'Tergantung kondisi donor, lingkup fabrikasi, pilihan komponen, dan finishing. Estimasi diberikan setelah konsultasi, bukan disamaratakan.',
+    question: 'How much does it cost and how long does it take?',
+    answer: 'It depends on the condition of the donor, the fabrication scope, component choices, and finishing. We give an estimate after consultation rather than a one-size-fits-all number.',
   },
   {
-    question: 'Apakah detail katalog bisa diubah?',
-    answer: 'Bisa didiskusikan. Warna, jok, setang, serta detail lain disesuaikan selama tetap selaras dengan fungsi dan konsep build.',
+    question: 'Can catalog details be changed?',
+    answer: 'Yes, we can discuss it. Color, seat, handlebars, and other details can be adjusted as long as they stay aligned with the function and concept of the build.',
   },
 ];
 
 const HOME_IMAGES = {
-  hero: '/images/home/ruka-hero.jpg',
   detail: '/images/home/the-silverline-detail.jpg',
   fabrication: '/images/home/ruka-fabrication.jpg',
   finishing: '/images/home/ruka-finishing.jpg',
@@ -149,7 +149,7 @@ function SectionLabel({ number, children }) {
 }
 
 export default function HomePage({ products, isLoading, error }) {
-  usePageTitle('RUKA Motorworks — Motor Custom, Dibuat dengan Tujuan');
+  usePageTitle('RUKA Motorworks — Custom Motorcycles, Built with Purpose');
   const [activeCategory, setActiveCategory] = useState('all');
   const consultationPath = getConsultationPath(products[0]?.id);
 
@@ -162,47 +162,36 @@ export default function HomePage({ products, isLoading, error }) {
   return (
     <main className="rm-home" id="main-content" tabIndex={-1}>
       <section aria-labelledby="rm-home-hero-title" className="rm-home__hero" id="home">
-        <img
-          alt=""
-          aria-hidden="true"
-          className="rm-home__hero-image"
-          fetchPriority="high"
-          src={HOME_IMAGES.hero}
-        />
-        <div aria-hidden="true" className="rm-home__hero-shade" />
+        <HeroCarousel error={error} isLoading={isLoading} products={products} />
         <div className="rm-container rm-home__hero-inner">
           <div className="rm-home__hero-copy">
             <p className="rm-home__eyebrow">
               <span aria-hidden="true" />
-              Bengkel independen / Bandung
+              Independent workshop / Bandung
             </p>
-            <h1 id="rm-home-hero-title">Bukan sekadar<br />motor biasa.</h1>
+            <h1 id="rm-home-hero-title">WHERE CLASSIC<br />MEETS CHARACTER</h1>
             <p className="rm-home__hero-description">
-              Mesin yang kamu kenal. Karakter yang sepenuhnya baru. Jelajahi
-              motor custom dengan sudut pandangmu sendiri.
+              Engines you know. Character that is entirely new. Explore custom
+              motorcycles through your own point of view.
             </p>
             <div className="rm-home__hero-actions">
               <Link className="rm-home__button rm-home__button--primary" to="/katalog">
-                Jelajahi katalog
+                Explore the catalog
                 <Icon name="arrow-up-right" size={18} />
               </Link>
               <a className="rm-home__text-link" href="#gaya">
-                Temukan gayamu
+                Find your style
                 <Icon name="arrow-down" size={16} />
               </a>
             </div>
           </div>
-          <p className="rm-home__hero-caption">
-            <span>Thunder / The Silverline</span>
-            <span>Café Racer · Suzuki Thunder</span>
-          </p>
         </div>
       </section>
 
       <section aria-labelledby="rm-home-style-strip-title" className="rm-home__style-strip" id="gaya">
         <div className="rm-container rm-home__style-strip-inner">
-          <h2 id="rm-home-style-strip-title">Tiga gaya. Satu sikap.</h2>
-          <nav aria-label="Pilih gaya motor">
+          <h2 id="rm-home-style-strip-title">Three styles. One attitude.</h2>
+          <nav aria-label="Choose a motorcycle style">
             {STYLES.map((style) => (
               <a href="#categories" key={style.id}>
                 <span>{style.number} /</span>
@@ -219,12 +208,12 @@ export default function HomePage({ products, isLoading, error }) {
         <div className="rm-container">
           <div className="rm-home__section-heading rm-home__categories-heading">
             <div>
-              <SectionLabel number="01">Karakter pilihan</SectionLabel>
-              <h2 id="rm-home-categories-title">Pilih garis besarmu.</h2>
+              <SectionLabel number="01">Curated character</SectionLabel>
+              <h2 id="rm-home-categories-title">Explore Our Custom Motorcycle Collection</h2>
             </div>
             <p>
-              Mulai dari gaya yang paling dekat denganmu. Setiap platform punya
-              bahasa desainnya sendiri.
+              Start with the style that feels closest to you. Every platform has
+              its own design language.
             </p>
           </div>
 
@@ -236,12 +225,12 @@ export default function HomePage({ products, isLoading, error }) {
                 <p className="rm-home__style-basis">{style.basis}</p>
                 <p className="rm-home__style-description">{style.description}</p>
                 <Link
-                  aria-label={`Lihat katalog ${style.name}`}
+                  aria-label={`View the ${style.name} catalog`}
                   className="rm-home__style-link"
                   onClick={() => setActiveCategory(style.id)}
                   to="/#builds"
                 >
-                  <span>Lihat build</span>
+                  <span>View build</span>
                   <Icon name="arrow-up-right" size={16} />
                 </Link>
               </article>
@@ -254,16 +243,16 @@ export default function HomePage({ products, isLoading, error }) {
         <div className="rm-container">
           <div className="rm-home__section-heading rm-home__builds-heading">
             <div>
-              <SectionLabel number="02">Katalog motor</SectionLabel>
-              <h2 id="rm-home-builds-title">Tiga build. Tiga karakter.</h2>
+              <SectionLabel number="02">Motorcycle catalog</SectionLabel>
+              <h2 id="rm-home-builds-title">RIDE YOUR OWN LEGEND</h2>
             </div>
             <p className="rm-home__build-count">
-              {isLoading ? 'Memuat katalog...' : `Menampilkan ${visibleProducts.length} build`}
+              {isLoading ? 'Loading catalog...' : `Showing ${visibleProducts.length} builds`}
               <Icon name="arrow-down" size={14} />
             </p>
           </div>
 
-          <div aria-label="Filter kategori motor" className="rm-home__filters" role="group">
+          <div aria-label="Filter motorcycle categories" className="rm-home__filters" role="group">
             {categoryOptions.map((category) => (
               <button
                 aria-pressed={activeCategory === category.id}
@@ -272,7 +261,7 @@ export default function HomePage({ products, isLoading, error }) {
                 onClick={() => setActiveCategory(category.id)}
                 type="button"
               >
-                {category.id === 'all' ? 'Semua gaya' : category.label}
+                {category.id === 'all' ? 'All styles' : category.label}
                 <span aria-hidden="true">
                   {category.id === 'all'
                     ? ` / ${String(products.length).padStart(2, '0')}`
@@ -291,18 +280,18 @@ export default function HomePage({ products, isLoading, error }) {
           ) : (
             <div aria-live="polite" className="rm-home__catalog-state">
               {isLoading
-                ? 'Memuat build pilihan...'
+                ? 'Loading featured builds...'
                 : error || (activeCategory === 'all'
-                  ? 'Belum ada motor di katalog.'
-                  : 'Belum ada build untuk kategori ini.')}
+                  ? 'No motorcycles in the catalog yet.'
+                  : 'No builds in this category yet.')}
             </div>
           )}
 
           <p className="rm-home__catalog-note">
-            Katalog ini adalah titik awal desain, bukan stok siap kirim.
-            Spesifikasi akhir, biaya, dan waktu pengerjaan dibahas sesuai
-            motor donor serta kebutuhanmu.
-            <Link to="/katalog">Buka katalog lengkap <Icon name="arrow-up-right" size={14} /></Link>
+            This catalog is a design starting point, not ready-to-ship stock.
+            Final specifications, cost, and build time are discussed around your
+            donor bike and needs.
+            <Link to="/katalog">Open the full catalog <Icon name="arrow-up-right" size={14} /></Link>
           </p>
         </div>
       </section>
@@ -311,19 +300,19 @@ export default function HomePage({ products, isLoading, error }) {
         <div className="rm-container rm-home__silverline-inner">
           <figure className="rm-home__silverline-image">
             <img
-              alt="Detail tangki perak brushed dan mesin The Silverline"
+              alt="Brushed silver tank and engine detail of The Silverline"
               loading="lazy"
               src={HOME_IMAGES.detail}
             />
-            <figcaption>RK-01 / Studi detail — Suzuki Thunder</figcaption>
+            <figcaption>RK-01 / Detail study — Suzuki Thunder</figcaption>
           </figure>
 
           <div className="rm-home__silverline-copy">
-            <SectionLabel number="03">Di balik siluet</SectionLabel>
-            <h2 id="rm-home-silverline-title">Karakter ada<br />di setiap detail.</h2>
+            <SectionLabel number="03">Behind the silhouette</SectionLabel>
+            <h2 id="rm-home-silverline-title">Character lives<br />in every detail.</h2>
             <p className="rm-home__silverline-intro">
-              The Silverline merangkum café racer dalam garis yang bersih.
-              Bukan sekadar mengganti komponen, tetapi menyatukan proporsi.
+              The Silverline distills the café racer into clean lines. It is not
+              simply a parts swap — it is a study in uniting proportion.
             </p>
             <ol className="rm-home__detail-list">
               {BUILD_DETAILS.map((detail) => (
@@ -337,7 +326,7 @@ export default function HomePage({ products, isLoading, error }) {
               ))}
             </ol>
             <Link className="rm-home__text-link" to="/motor/prod_1">
-              Kenali The Silverline
+              Get to know The Silverline
               <Icon name="arrow-up-right" size={16} />
             </Link>
           </div>
@@ -348,14 +337,14 @@ export default function HomePage({ products, isLoading, error }) {
         <div className="rm-container">
           <div className="rm-home__section-heading rm-home__workshop-heading">
             <div>
-              <SectionLabel number="04">Dari meja kerja Ruka</SectionLabel>
-              <h2 id="rm-home-workshop-title">Dibentuk tangan.<br />Dipikirkan matang.</h2>
+              <SectionLabel number="04">From the Ruka workbench</SectionLabel>
+              <h2 id="rm-home-workshop-title">Shaped by hand.<br />Thought through.</h2>
             </div>
             <div>
               <p>
-                Ruka adalah ruang untuk merakit ulang cara melihat motor.
-                Kami menyukai sambungan yang rapi, material yang jujur, dan
-                desain yang tetap masuk akal untuk dikendarai.
+                Ruka is a space for rethinking the way we see motorcycles. We
+                love clean joints, honest materials, and design that still makes
+                sense to ride.
               </p>
               <ul>
                 {WORKSHOP_VALUES.map((value) => <li key={value}>{value}</li>)}
@@ -366,19 +355,19 @@ export default function HomePage({ products, isLoading, error }) {
           <div className="rm-home__workshop-gallery">
             <figure className="rm-home__workshop-photo rm-home__workshop-photo--wide">
               <img
-                alt="Fabrikasi rangka motor custom di meja kerja bengkel"
+                alt="Custom motorcycle frame fabrication on the workshop bench"
                 loading="lazy"
                 src={HOME_IMAGES.fabrication}
               />
-              <figcaption>Fabrikasi / Dari bahan mentah menjadi bentuk</figcaption>
+              <figcaption>Fabrication / From raw material to form</figcaption>
             </figure>
             <figure className="rm-home__workshop-photo">
               <img
-                alt="Pengerjaan finishing jok motor secara teliti"
+                alt="Careful finishing work on a motorcycle seat"
                 loading="lazy"
                 src={HOME_IMAGES.finishing}
               />
-              <figcaption>Finishing / Sentuhan yang terasa</figcaption>
+              <figcaption>Finishing / A touch you can feel</figcaption>
             </figure>
           </div>
         </div>
@@ -388,11 +377,11 @@ export default function HomePage({ products, isLoading, error }) {
         <div className="rm-container">
           <div className="rm-home__process-heading">
             <div>
-              <SectionLabel number="05">Dari ide ke jalan</SectionLabel>
-              <h2 id="rm-home-process-title">Mulai dari obrolan.</h2>
+              <SectionLabel number="05">From idea to the road</SectionLabel>
+              <h2 id="rm-home-process-title">It starts with a conversation.</h2>
             </div>
             <Link className="rm-home__button rm-home__button--outline" to={consultationPath}>
-              Bicarakan idemu
+              Talk about your idea
               <Icon name="arrow-up-right" size={18} />
             </Link>
           </div>
@@ -416,12 +405,12 @@ export default function HomePage({ products, isLoading, error }) {
         <div className="rm-container">
           <div className="rm-home__personal-heading">
             <div>
-              <SectionLabel number="06">Ruang untuk seleramu</SectionLabel>
-              <h2 id="rm-home-personal-title">Basis sama. Cerita berbeda.</h2>
+              <SectionLabel number="06">Room for your taste</SectionLabel>
+              <h2 id="rm-home-personal-title">Same platform. Different story.</h2>
             </div>
             <p>
-              Katalog memberi arah. Keputusan detail dibuat bersama, sesuai
-              konsep dan kondisi motor donor.
+              The catalog sets a direction. Detail decisions are made together,
+              shaped by the concept and the condition of your donor bike.
             </p>
           </div>
           <div className="rm-home__personal-grid">
@@ -442,9 +431,9 @@ export default function HomePage({ products, isLoading, error }) {
       <section aria-labelledby="rm-home-faq-title" className="rm-home__faq theme-editorial" id="faq">
         <div className="rm-container rm-home__faq-inner">
           <div className="rm-home__faq-heading">
-            <SectionLabel number="07">Sebelum memulai</SectionLabel>
-            <h2 id="rm-home-faq-title">Yang sering<br />ditanyakan.</h2>
-            <p>Belum pernah membangun motor custom? Mulai dengan hal-hal mendasar ini.</p>
+            <SectionLabel number="07">Before you begin</SectionLabel>
+            <h2 id="rm-home-faq-title">Frequently asked<br />questions.</h2>
+            <p>New to custom motorcycles? Start with these fundamentals.</p>
           </div>
           <div className="rm-home__faq-list">
             {FAQS.map((item) => (
@@ -463,19 +452,19 @@ export default function HomePage({ products, isLoading, error }) {
       <section aria-labelledby="rm-home-contact-title" className="rm-home__contact" id="contact">
         <div className="rm-container rm-home__contact-inner">
           <div className="rm-home__contact-copy">
-            <SectionLabel number="08">Sampai ketemu di bengkel</SectionLabel>
-            <h2 id="rm-home-contact-title">Motor berikutnya.<br />Ceritamu sendiri.</h2>
+            <SectionLabel number="08">See you at the workshop</SectionLabel>
+            <h2 id="rm-home-contact-title">Your next motorcycle.<br />Your own story.</h2>
             <p>
-              Sudah menemukan arah? Bawa referensi, ceritakan motor donormu,
-              dan mari bahas kemungkinan build-nya.
+              Found a direction? Bring references, tell us about your donor bike,
+              and let&apos;s explore what the build could become.
             </p>
             <div className="rm-home__contact-actions">
               <Link className="rm-home__button rm-home__button--primary" to={consultationPath}>
-                Mulai konsultasi
+                Start a consultation
                 <Icon name="arrow-up-right" size={18} />
               </Link>
               <Link className="rm-home__button rm-home__button--outline" to="/katalog">
-                Kembali ke katalog
+                Back to the catalog
                 <Icon name="arrow-up-right" size={18} />
               </Link>
             </div>
@@ -487,12 +476,12 @@ export default function HomePage({ products, isLoading, error }) {
               >
                 Via WhatsApp
               </a>
-              {' / Kunjungan dengan janji temu'}
+              {' / Visits by appointment'}
             </p>
           </div>
           <figure className="rm-home__contact-image">
             <img
-              alt="Motor custom klasik di ruang bengkel Ruka Motorworks"
+              alt="Classic custom motorcycle in the Ruka Motorworks workshop"
               loading="lazy"
               src={HOME_IMAGES.nextBuild}
             />

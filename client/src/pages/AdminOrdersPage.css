@@ -277,6 +277,31 @@
   margin-top: 14px;
 }
 
+.rm-admin-order-detail__reference {
+  align-items: center;
+  border-top: 1px solid var(--rm-color-rule);
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.rm-admin-order-detail__reference img {
+  aspect-ratio: 1.4;
+  border: 1px solid var(--rm-color-rule);
+  height: 56px;
+  object-fit: cover;
+  width: 78px;
+}
+
+.rm-admin-order-detail__reference span {
+  color: var(--rm-color-muted);
+  font-family: var(--rm-font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .rm-admin-order-detail__requirements {
   border-top: 1px solid var(--rm-color-rule);
   color: var(--rm-color-silver);

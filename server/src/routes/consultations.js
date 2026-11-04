@@ -18,9 +18,9 @@ const upload = multer({
   limits: {
     fileSize: MAX_FILE_SIZE,
     files: 3,
-    fields: 12,
+    fields: 20,
     fieldSize: 8 * 1024,
-    parts: 15,
+    parts: 25,
     headerPairs: 100,
   },
   fileFilter: (req, file, callback) => {
@@ -58,6 +58,7 @@ function validateConsultation(body, product) {
   const buildName = value("buildName");
   const buildCode = value("buildCode");
   const basis = value("basis");
+  const referenceMotorId = value("referenceMotorId");
 
   if (!fullName) errors.fullName = "Masukkan nama lengkap.";
   else if (fullName.length > 100) errors.fullName = "Nama maksimal 100 karakter.";
@@ -92,6 +93,9 @@ function validateConsultation(body, product) {
   if (buildName.length > 100) errors.buildName = "Nama build tidak valid.";
   if (buildCode.length > 40) errors.buildCode = "Kode build tidak valid.";
   if (basis.length > 120) errors.basis = "Basis motor tidak valid.";
+  if (referenceMotorId.length > 100) {
+    errors.referenceMotorId = "Motor referensi tidak valid.";
+  }
 
   return {
     errors,
@@ -106,6 +110,7 @@ function validateConsultation(body, product) {
       buildName,
       buildCode,
       basis,
+      referenceMotorId,
     },
   };
 }
@@ -294,6 +299,16 @@ router.post("/", (req, res, next) => {
   const { errors, values } = validateConsultation(body, product);
   const photos = req.files || [];
 
+  let referenceMotor = null;
+  if (values.referenceMotorId) {
+    referenceMotor = db.getProductById(values.referenceMotorId);
+    if (!referenceMotor) {
+      errors.referenceMotorId = "Motor referensi tidak ditemukan. Pilih motor lain dari katalog.";
+    } else if (String(referenceMotor.stockStatus || "").toLowerCase() !== "tersedia") {
+      errors.referenceMotorId = "Motor referensi sudah tidak aktif di katalog. Pilih motor lain.";
+    }
+  }
+
   for (const photo of photos) {
     if (!isValidImage(photo)) {
       errors.photos = `${photo.originalname || "Foto"} bukan berkas JPG atau PNG yang valid.`;
@@ -333,6 +348,7 @@ router.post("/", (req, res, next) => {
       categoryName: product.categoryName,
       basis: product.basis || values.basis,
       price: product.price,
+      referenceMotor,
       referenceImages: savedFiles.map((file) => file.publicPath),
     });
 

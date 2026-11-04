@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../ui/Icon';
-import { formatRupiah } from '../../lib/products';
+import {
+  formatRupiah,
+  getActiveProducts,
+  getCatalogProductImage,
+  getProductBasis,
+  getProductBuildName,
+  isProductActive,
+} from '../../lib/products';
 import './ConsultationForm.css';
 
 const EMPTY_FIELDS = {
@@ -12,8 +19,17 @@ const EMPTY_FIELDS = {
   donorMotorOther: '',
   budgetRange: '',
   requirements: '',
+  referenceMotorId: '',
   consent: false,
 };
+
+function getReferenceLabel(product) {
+  const buildName = getProductBuildName(product);
+  const basis = getProductBasis(product);
+  const name = product.name || buildName || product.id;
+  const series = buildName && buildName !== name ? ` / ${buildName}` : '';
+  return `${name}${series}${basis ? ` — ${basis}` : ''}`;
+}
 
 function validateFields(fields, files) {
   const errors = {};
@@ -49,20 +65,48 @@ function validateFields(fields, files) {
 
 export default function ConsultationForm({
   product,
+  products = [],
   buildName,
   buildCode,
   basis,
 }) {
-  const [fields, setFields] = useState(EMPTY_FIELDS);
+  const defaultReferenceId = product && isProductActive(product) ? product.id : '';
+  const [fields, setFields] = useState(() => ({
+    ...EMPTY_FIELDS,
+    referenceMotorId: defaultReferenceId,
+  }));
   const [photos, setPhotos] = useState([]);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [referenceImageFailed, setReferenceImageFailed] = useState(false);
   const submitting = useRef(false);
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
   const photoUrls = useRef(new Set());
+
+  const referenceOptions = useMemo(() => {
+    const options = getActiveProducts(products);
+    if (product && isProductActive(product) && !options.some((item) => item.id === product.id)) {
+      options.unshift(product);
+    }
+    return options;
+  }, [products, product]);
+
+  const selectedReference = fields.referenceMotorId
+    ? referenceOptions.find((item) => String(item.id) === String(fields.referenceMotorId)) || null
+    : null;
+  const referenceImage = selectedReference
+    ? getCatalogProductImage(selectedReference)
+    : '';
+  const selectedBasis = selectedReference ? getProductBasis(selectedReference) : basis;
+  const referenceDisplayName = selectedReference
+    ? (getProductBuildName(selectedReference) || selectedReference.name)
+    : '';
+  const referenceTitle = selectedReference
+    ? `${selectedReference.name}${referenceDisplayName && referenceDisplayName !== selectedReference.name ? ` / ${referenceDisplayName}` : ''}`
+    : 'Belum menentukan';
 
   useEffect(() => () => {
     photoUrls.current.forEach((url) => URL.revokeObjectURL(url));
@@ -151,6 +195,7 @@ export default function ConsultationForm({
     formData.append('buildName', buildName);
     formData.append('buildCode', buildCode);
     formData.append('basis', basis);
+    formData.append('referenceMotorId', fields.referenceMotorId);
     photos.forEach(({ file }) => formData.append('photos', file, file.name));
 
     try {
@@ -172,7 +217,8 @@ export default function ConsultationForm({
       }
 
       setSuccess(`Permintaan konsultasi tersimpan dengan nomor ${result.data.id}. Ruka akan menghubungi Anda.`);
-      setFields(EMPTY_FIELDS);
+      setFields({ ...EMPTY_FIELDS, referenceMotorId: defaultReferenceId });
+      setReferenceImageFailed(false);
       photos.forEach(({ preview }) => {
         URL.revokeObjectURL(preview);
         photoUrls.current.delete(preview);
@@ -188,15 +234,37 @@ export default function ConsultationForm({
     }
   };
 
-  const basisLabel = basis || 'Basis motor dibahas saat konsultasi';
+  const basisLabel = selectedBasis || 'Basis motor dibahas saat konsultasi';
 
   return (
     <div className="rm-consult-form-wrap">
       <div className="rm-consult-reference">
-        <p className="rm-meta">Referensi pilihanmu</p>
-        <h3>{product.name} / {buildName}</h3>
-        <p>{basisLabel} · {product.categoryName || 'Custom build'}</p>
-        <strong>{formatRupiah(product.price)}</strong>
+        <div className="rm-consult-reference__body">
+          <p className="rm-meta">Referensi pilihanmu</p>
+          <h3>{referenceTitle}</h3>
+          <p>
+            {selectedReference
+              ? `${basisLabel} · ${selectedReference.categoryName || 'Custom build'}`
+              : 'Konsultasi terlebih dahulu · Kami bantu memilih arah build'}
+          </p>
+          {selectedReference ? <strong>{formatRupiah(selectedReference.price)}</strong> : null}
+        </div>
+        {selectedReference ? (
+          referenceImage && !referenceImageFailed ? (
+            <img
+              alt={`Referensi ${selectedReference.name}`}
+              className="rm-consult-reference__image"
+              onError={() => setReferenceImageFailed(true)}
+              src={referenceImage}
+            />
+          ) : (
+            <span aria-hidden="true" className="rm-consult-reference__placeholder">
+              {selectedReference.name.slice(0, 1).toUpperCase()}
+            </span>
+          )
+        ) : (
+          <span aria-hidden="true" className="rm-consult-reference__placeholder">?</span>
+        )}
       </div>
 
       <p className="rm-consult-disclaimer">
@@ -214,6 +282,29 @@ export default function ConsultationForm({
           {formError ? <p className="rm-consult-form__error" role="alert">{formError}</p> : null}
 
           <div className="rm-consult-form__grid">
+            <label className="rm-consult-field rm-consult-field--full">
+              <span>Motor referensi</span>
+              <select
+                name="referenceMotorId"
+                onChange={(event) => {
+                  setReferenceImageFailed(false);
+                  setField('referenceMotorId', event.target.value);
+                }}
+                value={fields.referenceMotorId}
+              >
+                <option value="">Belum menentukan / Konsultasi terlebih dahulu</option>
+                {referenceOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {getReferenceLabel(item)}
+                  </option>
+                ))}
+              </select>
+              <small>
+                Pilih motor dari katalog sebagai acuan, atau biarkan kosong bila
+                masih ingin berdiskusi terlebih dahulu.
+              </small>
+            </label>
+
             <label className="rm-consult-field">
               <span>Nama lengkap <b>*</b></span>
               <input

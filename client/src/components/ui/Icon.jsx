@@ -3,6 +3,14 @@ const ICONS = {
   close: <path d="M6 6l12 12M18 6L6 18" />,
   'arrow-up-right': <path d="M7 17 17 7M8 7h9v9" />,
   'arrow-down': <path d="M12 5v14M6 13l6 6 6-6" />,
+  'arrow-left': <path d="M19 12H5M11 6l-6 6 6 6" />,
+  'arrow-right': <path d="M5 12h14M13 6l6 6-6 6" />,
+  play: <path d="m8 5 11 7-11 7V5Z" />,
+  pause: (
+    <>
+      <path d="M9 5v14M15 5v14" />
+    </>
+  ),
   'chevron-down': <path d="m6 9 6 6 6-6" />,
   sliders: (
     <>

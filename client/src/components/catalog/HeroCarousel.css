@@ -1,0 +1,180 @@
+.rm-hero-carousel {
+  cursor: grab;
+  height: 100%;
+  inset: 0;
+  overflow: hidden;
+  position: absolute;
+  touch-action: pan-y;
+  user-select: none;
+  width: 100%;
+  z-index: -2;
+}
+
+.rm-hero-carousel__track {
+  display: flex;
+  height: 100%;
+  transition: transform 620ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+
+.rm-hero-carousel__track.is-dragging {
+  transition: none;
+}
+
+.rm-hero-carousel__slide {
+  flex: 0 0 100%;
+  height: 100%;
+  min-width: 0;
+  position: relative;
+}
+
+.rm-hero-carousel__image {
+  height: 100%;
+  object-fit: cover;
+  object-position: center 49%;
+  pointer-events: none;
+  user-select: none;
+  width: 100%;
+}
+
+.rm-hero-carousel__controls {
+  align-items: center;
+  bottom: 58px;
+  display: flex;
+  gap: 8px;
+  position: absolute;
+  right: var(--rm-margin);
+  z-index: 2;
+}
+
+.rm-hero-carousel__arrow,
+.rm-hero-carousel__toggle {
+  align-items: center;
+  background: rgba(17, 17, 17, 0.58);
+  border: 1px solid rgba(244, 244, 240, 0.28);
+  color: var(--rm-color-ivory);
+  cursor: pointer;
+  display: inline-flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  transition:
+    background-color var(--rm-transition),
+    border-color var(--rm-transition),
+    color var(--rm-transition);
+  width: 40px;
+}
+
+.rm-hero-carousel__toggle {
+  border-color: rgba(244, 244, 240, 0.16);
+  height: 32px;
+  margin-left: 2px;
+  width: 32px;
+}
+
+.rm-hero-carousel__arrow:hover,
+.rm-hero-carousel__toggle:hover {
+  background: var(--rm-color-brick);
+  border-color: var(--rm-color-brick);
+  color: var(--rm-color-ivory);
+}
+
+.rm-hero-carousel__arrow:focus-visible,
+.rm-hero-carousel__toggle:focus-visible,
+.rm-hero-carousel__dot:focus-visible {
+  outline: 2px solid var(--rm-color-silver);
+  outline-offset: 2px;
+}
+
+.rm-hero-carousel__dots {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+  max-width: min(40vw, 320px);
+  overflow-x: auto;
+  padding: 0 4px;
+  scrollbar-width: none;
+}
+
+.rm-hero-carousel__dots::-webkit-scrollbar {
+  display: none;
+}
+
+.rm-hero-carousel__dot {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 22px;
+}
+
+.rm-hero-carousel__dot > span {
+  background: rgba(244, 244, 240, 0.38);
+  display: block;
+  height: 2px;
+  transition:
+    background-color var(--rm-transition),
+    width var(--rm-transition);
+  width: 14px;
+}
+
+.rm-hero-carousel__dot:hover > span {
+  background: rgba(244, 244, 240, 0.75);
+}
+
+.rm-hero-carousel__dot.is-active > span {
+  background: var(--rm-color-brick);
+  width: 22px;
+}
+
+.rm-home__hero-caption a {
+  color: inherit;
+  pointer-events: auto;
+  text-decoration: none;
+}
+
+.rm-home__hero-caption a:hover {
+  color: var(--rm-color-ivory);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rm-hero-carousel__track {
+    transition: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .rm-hero-carousel__controls {
+    bottom: 58px;
+    gap: 5px;
+  }
+
+  .rm-hero-carousel__arrow {
+    height: 36px;
+    width: 36px;
+  }
+
+  .rm-hero-carousel__toggle {
+    display: none;
+  }
+
+  .rm-hero-carousel__dots {
+    max-width: 34vw;
+  }
+
+  .rm-hero-carousel__dot {
+    height: 30px;
+    width: 18px;
+  }
+
+  .rm-hero-carousel__dot.is-active > span {
+    width: 18px;
+  }
+}

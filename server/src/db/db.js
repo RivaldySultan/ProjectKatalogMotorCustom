@@ -354,6 +354,12 @@ class SqliteDatabase {
       reference_category: "TEXT",
       reference_basis: "TEXT",
       reference_price: "INTEGER",
+      reference_motor_id: "TEXT",
+      reference_motor_name: "TEXT",
+      reference_motor_build_name: "TEXT",
+      reference_motor_basis: "TEXT",
+      reference_motor_image: "TEXT",
+      reference_motor_selected: "INTEGER NOT NULL DEFAULT 0",
       consent: "INTEGER NOT NULL DEFAULT 0",
     };
 
@@ -1529,13 +1535,16 @@ class SqliteDatabase {
   }
 
   createConsultation(consultation) {
+    const referenceMotor = consultation.referenceMotor || null;
     const insert = this.db.prepare(`
       INSERT INTO orders (
         id, name, email, phone, city, build_interest, budget, message,
         reference_image, reference_images, donor_motor, reference_product_id,
         reference_product_name, reference_build_name, reference_build_code,
-        reference_category, reference_basis, reference_price, consent
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        reference_category, reference_basis, reference_price,
+        reference_motor_id, reference_motor_name, reference_motor_build_name,
+        reference_motor_basis, reference_motor_image, reference_motor_selected, consent
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     this.db.exec("BEGIN IMMEDIATE");
@@ -1559,6 +1568,12 @@ class SqliteDatabase {
         consultation.categoryName || null,
         consultation.basis || null,
         consultation.price,
+        referenceMotor?.id || null,
+        referenceMotor?.name || null,
+        referenceMotor?.buildName || null,
+        referenceMotor?.basis || null,
+        referenceMotor?.image || null,
+        1,
         1,
       );
       this.db.exec("COMMIT");
@@ -1600,7 +1615,11 @@ class SqliteDatabase {
         build_interest AS buildInterest, reference_product_id AS productId,
         reference_product_name AS productName, reference_build_name AS buildName,
         reference_build_code AS buildCode, reference_basis AS basis,
-        reference_category AS categoryName, status, created_at AS createdAt
+        reference_category AS categoryName, reference_motor_id AS referenceMotorId,
+        reference_motor_name AS referenceMotorName,
+        reference_motor_build_name AS referenceMotorBuildName,
+        reference_motor_basis AS referenceMotorBasis,
+        reference_motor_selected AS referenceMotorSelected, status, created_at AS createdAt
       FROM orders
       ${where}
       ORDER BY created_at ${sort === "asc" ? "ASC" : "DESC"}, id ${sort === "asc" ? "ASC" : "DESC"}
@@ -1642,6 +1661,12 @@ class SqliteDatabase {
         reference_build_code AS buildCode,
         reference_category AS categoryName,
         reference_basis AS basis, reference_price AS price,
+        reference_motor_id AS referenceMotorId,
+        reference_motor_name AS referenceMotorName,
+        reference_motor_build_name AS referenceMotorBuildName,
+        reference_motor_basis AS referenceMotorBasis,
+        reference_motor_image AS referenceMotorImage,
+        reference_motor_selected AS referenceMotorSelected,
         reference_images AS referenceImagesJson, reference_image AS referenceImage,
         status, created_at AS createdAt
       FROM orders

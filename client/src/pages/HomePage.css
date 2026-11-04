@@ -43,7 +43,13 @@
   min-height: 690px;
   padding-bottom: 90px;
   padding-top: 60px;
+  pointer-events: none;
   position: relative;
+}
+
+.rm-home__hero-inner a,
+.rm-home__hero-inner button {
+  pointer-events: auto;
 }
 
 .rm-home__hero-copy {
@@ -165,9 +171,14 @@
   left: var(--rm-margin);
   letter-spacing: 0.1em;
   margin: 0;
+  pointer-events: none;
   position: absolute;
   right: var(--rm-margin);
   text-transform: uppercase;
+}
+
+.rm-home__hero-shade {
+  pointer-events: none;
 }
 
 .rm-home__style-strip {

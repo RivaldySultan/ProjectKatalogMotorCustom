@@ -253,7 +253,9 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
               basis={basis}
               buildCode={buildCode}
               buildName={buildName}
+              key={product.id}
               product={product}
+              products={products}
             />
           </div>
         </div>
