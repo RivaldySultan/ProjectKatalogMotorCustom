@@ -11,6 +11,7 @@ import { getWhatsAppLink } from '../lib/whatsapp';
 import { navigate } from '../lib/router';
 import { usePageTitle } from '../lib/usePageTitle';
 import { customerRequest, useCustomerSession } from '../lib/customerAuth';
+import { createUuid } from '../lib/uuid';
 import './CheckoutPage.css';
 
 const EMPTY_CUSTOMER = {
@@ -58,7 +59,8 @@ function paymentLabel(method) {
 }
 
 export default function CheckoutPage({ productId, products, isLoading }) {
-  const product = products.find((item) => String(item.id) === String(productId));
+  const productList = Array.isArray(products) ? products : [];
+  const product = productList.find((item) => item && String(item.id) === String(productId));
   const customerSession = useCustomerSession();
   const checkoutPath = `/checkout/${encodeURIComponent(productId)}`;
   const [values, setValues] = useState(EMPTY_CUSTOMER);
@@ -66,13 +68,13 @@ export default function CheckoutPage({ productId, products, isLoading }) {
   const [order, setOrder] = useState(null);
   const [proof, setProof] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
-  const [error, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [notice, setNotice] = useState('');
   const [isLoadingMethods, setIsLoadingMethods] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [copied, setCopied] = useState('');
-  const idempotencyKey = useRef(window.crypto.randomUUID());
+  const idempotencyKey = useRef(createUuid());
   const accessToken = useRef(createSecret(32));
 
   usePageTitle(order?.orderNumber ? `${order.orderNumber} — RUKA Motorworks` : 'Checkout — RUKA Motorworks');
@@ -80,7 +82,7 @@ export default function CheckoutPage({ productId, products, isLoading }) {
   useEffect(() => {
     let active = true;
     customerRequest('/api/customers/me').then((result) => {
-      if (!active || !result.ok) return;
+      if (!active || !result?.ok || !result.data || typeof result.data !== 'object') return;
       setValues((previous) => ({
         ...previous,
         customerName: previous.customerName || result.data.fullName || '',
@@ -96,20 +98,23 @@ export default function CheckoutPage({ productId, products, isLoading }) {
     fetch('/api/purchases/payment-methods')
       .then(async (response) => {
         const result = await response.json();
-        if (!response.ok || !result.success || !Array.isArray(result.data)) {
-          throw new Error(result.message || 'Payment methods could not be loaded.');
+        if (!response.ok || !result?.success || !Array.isArray(result.data)) {
+          throw new Error(result?.message || `Payment methods could not be loaded (${response.status}).`);
         }
         if (active) {
-          setPaymentMethods(result.data);
+          const methods = result.data.filter(
+            (method) => method && typeof method.method === 'string' && typeof method.label === 'string',
+          );
+          setPaymentMethods(methods);
           setValues((previous) => ({
             ...previous,
-            paymentMethod: previous.paymentMethod || result.data[0]?.method || '',
+            paymentMethod: previous.paymentMethod || methods[0]?.method || '',
           }));
         }
       })
       .catch((requestError) => {
         console.error('Failed to load payment methods:', requestError);
-        if (active) setError(requestError.message || 'Payment methods could not be loaded.');
+        if (active) setErrorMessage(requestError.message || 'Payment methods could not be loaded.');
       })
       .finally(() => {
         if (active) setIsLoadingMethods(false);
@@ -125,7 +130,9 @@ export default function CheckoutPage({ productId, products, isLoading }) {
         })
         .then(async (response) => {
           const result = await response.json();
-          if (!response.ok || !result.success) throw new Error(result.message || 'Order not found.');
+          if (!response.ok || !result?.success || !result.data || typeof result.data !== 'object') {
+            throw new Error(result?.message || `Order not found (${response.status}).`);
+          }
           if (active) {
             accessToken.current = token;
             setOrder(result.data);
@@ -135,7 +142,7 @@ export default function CheckoutPage({ productId, products, isLoading }) {
           console.error('Failed to load order:', requestError);
           if (active) {
             sessionStorage.removeItem(getLocalOrderKey(productId));
-            setError('The saved order could not be loaded. Check the link and your browser session.');
+            setErrorMessage('The saved order could not be loaded. Check the link and your browser session.');
           }
         });
       } catch (storageError) {
@@ -161,14 +168,14 @@ export default function CheckoutPage({ productId, products, isLoading }) {
 
   const handleCreateOrder = async (event) => {
     event.preventDefault();
-    setError('');
+    setErrorMessage('');
     setNotice('');
     if (!product || product.canPurchase !== 1) {
-      setError('This build is not available for direct purchase.');
+      setErrorMessage('This build is not available for direct purchase.');
       return;
     }
-    if (!paymentMethods.some(({ method }) => method === values.paymentMethod)) {
-      setError('No transfer methods are configured. The order was not created.');
+    if (!paymentMethods.some((method) => method?.method === values.paymentMethod)) {
+      setErrorMessage('No transfer methods are configured. The order was not created.');
       return;
     }
 
@@ -185,8 +192,18 @@ export default function CheckoutPage({ productId, products, isLoading }) {
           accessToken: accessToken.current,
         }),
       });
-      const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(result.message || 'The order could not be created.');
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || `The order could not be created (${response.status}).`);
+      }
+      if (
+        !result.data
+        || typeof result.data !== 'object'
+        || typeof result.data.id !== 'string'
+        || typeof result.data.accessToken !== 'string'
+      ) {
+        throw new Error('The server returned an incomplete order response. Please try again.');
+      }
       sessionStorage.setItem(
         getLocalOrderKey(productId),
         JSON.stringify({ orderId: result.data.id, token: result.data.accessToken }),
@@ -194,7 +211,12 @@ export default function CheckoutPage({ productId, products, isLoading }) {
       navigate(`/pesanan/${encodeURIComponent(result.data.id)}#${result.data.accessToken}`);
     } catch (requestError) {
       console.error('Failed to create purchase order:', requestError);
-      setError(requestError.message || 'The order could not be created. Your form data is still saved.');
+      const message = requestError?.response?.data?.message || requestError?.message;
+      setErrorMessage(
+        typeof message === 'string' && message.trim()
+          ? message
+          : 'The order could not be created. Check your connection and try again; your form data is still saved.',
+      );
     } finally {
       setIsCreating(false);
     }
@@ -207,15 +229,15 @@ export default function CheckoutPage({ productId, products, isLoading }) {
       if (previous) URL.revokeObjectURL(previous);
       return '';
     });
-    setError('');
+    setErrorMessage('');
     if (!selected) return;
     if (!['image/jpeg', 'image/png'].includes(selected.type)) {
-      setError('Payment proof must be a JPG or PNG image.');
+      setErrorMessage('Payment proof must be a JPG or PNG image.');
       event.target.value = '';
       return;
     }
     if (selected.size > 5 * 1024 * 1024) {
-      setError('Payment proof must not exceed 5 MB.');
+      setErrorMessage('Payment proof must not exceed 5 MB.');
       event.target.value = '';
       return;
     }
@@ -227,7 +249,7 @@ export default function CheckoutPage({ productId, products, isLoading }) {
     event.preventDefault();
     if (!proof || !order) return;
     setIsUploading(true);
-    setError('');
+    setErrorMessage('');
     setNotice('');
     try {
       const body = new FormData();
@@ -245,7 +267,7 @@ export default function CheckoutPage({ productId, products, isLoading }) {
       setNotice('Payment proof received and awaiting admin review. This does not mark the order as paid.');
     } catch (requestError) {
       console.error('Failed to submit payment proof:', requestError);
-      setError(requestError.message || 'Payment proof could not be submitted.');
+      setErrorMessage(requestError.message || 'Payment proof could not be submitted.');
     } finally {
       setIsUploading(false);
     }
@@ -268,27 +290,27 @@ export default function CheckoutPage({ productId, products, isLoading }) {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        setError(result.message || 'Order status could not be updated.');
+        setErrorMessage(result.message || 'Order status could not be updated.');
         return;
       }
       setOrder(result.data);
-      setError('');
+      setErrorMessage('');
     } catch (requestError) {
       console.error('Failed to update order status:', requestError);
-      setError('Order status could not be updated. Check your connection and try again.');
+      setErrorMessage('Order status could not be updated. Check your connection and try again.');
     }
   };
 
   const startNewOrder = () => {
     sessionStorage.removeItem(getLocalOrderKey(productId));
-    idempotencyKey.current = window.crypto.randomUUID();
+    idempotencyKey.current = createUuid();
     accessToken.current = createSecret(32);
     setOrder(null);
     setValues(EMPTY_CUSTOMER);
     setProof(null);
     setProofPreview('');
     setNotice('');
-    setError('');
+    setErrorMessage('');
   };
 
   if (isLoading) {
@@ -374,7 +396,7 @@ export default function CheckoutPage({ productId, products, isLoading }) {
         <p>{order ? 'This purchase order is recorded separately from custom consultation requests.' : 'Order a build with catalog specifications already defined.'}</p>
       </header>
 
-      {error ? <p className="rm-checkout__message is-error" role="alert">{error}</p> : null}
+      {errorMessage ? <p className="rm-checkout__message is-error" role="alert">{errorMessage}</p> : null}
       {notice ? <p className="rm-checkout__message" role="status">{notice}</p> : null}
 
       <div className="rm-checkout__layout">

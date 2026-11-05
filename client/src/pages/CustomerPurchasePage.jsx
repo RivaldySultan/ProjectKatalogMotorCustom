@@ -38,6 +38,19 @@ function getStatus(order) {
   return 'pending_payment';
 }
 
+function getOrderSpecifications(value) {
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const specifications = JSON.parse(value);
+    return Array.isArray(specifications)
+      ? specifications.filter((item) => item && typeof item.label === 'string')
+      : [];
+  } catch (parseError) {
+    console.error('Invalid order specifications:', parseError);
+    return [];
+  }
+}
+
 export default function CustomerPurchasePage({ orderId, accessToken }) {
   const hasValidAccessToken = /^[a-f0-9]{64}$/i.test(accessToken || '');
   const [order, setOrder] = useState(null);
@@ -72,7 +85,9 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
       headers: { 'X-Order-Access-Token': accessToken },
     });
     const result = await response.json();
-    if (!response.ok || !result.success) throw new Error(result.message || 'Order status could not be loaded.');
+    if (!response.ok || !result?.success || !result.data || typeof result.data !== 'object') {
+      throw new Error(result?.message || `Order status could not be loaded (${response.status}).`);
+    }
     return result.data;
   }, [accessToken, orderId]);
 
@@ -273,7 +288,7 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
               <dl className="rm-customer-order__fields">
                 <div><dt>Motorcycle basis</dt><dd>{order.basis}</dd></div>
                 <div><dt>Category</dt><dd>{order.categoryName}</dd></div>
-                {JSON.parse(order.specifications || '[]').map(({ label, value }, index) => <div key={`${label}-${index}`}><dt>{label}</dt><dd>{value}</dd></div>)}
+                {getOrderSpecifications(order.specifications).map(({ label, value }, index) => <div key={`${label}-${index}`}><dt>{label}</dt><dd>{value ?? '—'}</dd></div>)}
                 <div><dt>Build price</dt><dd>{formatRupiah(order.price)}</dd></div>
                 <div><dt>Shipping</dt><dd>{order.shippingCost == null ? 'Awaiting confirmation' : formatRupiah(order.shippingCost)}</dd></div>
                 <div><dt>Total</dt><dd>{formatRupiah(order.totalAmount)}</dd></div>

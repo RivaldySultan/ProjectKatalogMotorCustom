@@ -415,4 +415,18 @@ router.get("/:id", (req, res) => {
   return res.json({ success: true, data: withPaymentInstructions(order) });
 });
 
+router.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+
+  const errorStatus = Number(error.statusCode || error.status);
+  const status = errorStatus >= 400 && errorStatus < 500 ? errorStatus : 500;
+  console.error("Unhandled purchase route error:", error);
+  return res.status(status).json({
+    success: false,
+    message: status === 500
+      ? "The purchase request could not be completed."
+      : error.message || "Invalid purchase request.",
+  });
+});
+
 export default router;
