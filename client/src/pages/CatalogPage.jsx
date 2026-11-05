@@ -80,7 +80,7 @@ export default function CatalogPage({ products, isLoading, error }) {
           <p className="rm-eyebrow rm-page-intro__eyebrow">01 / Ruka Series</p>
 
           <div className="rm-page-intro__heading">
-            <h1>Three builds.<br />Three characters.</h1>
+            <h1>DISCOVER YOUR PERFECT RIDE</h1>
           </div>
           <div className="rm-page-intro__aside">
             <p>Engines you know. A character that is entirely new. Choose a starting point for your motorcycle story.</p>
