@@ -513,7 +513,7 @@ function OrderDetailPage({ orderId }) {
           <p className="rm-meta">ORDER HISTORY</p><h2>Recorded Activity</h2>
           {order.timeline?.length ? (
             <ol className="rm-account__timeline">
-              {order.timeline.map((item) => <li key={item.id}><strong>{item.label}</strong><time>{formattedDate(item.createdAt)}</time>{item.details ? <p>{item.details}</p> : null}</li>)}
+              {order.timeline.map((item) => <li key={item.id}><strong>{item.eventType === 'order_ready_to_ship' ? 'Order delivery' : item.label}</strong><time>{formattedDate(item.createdAt)}</time>{item.details ? <p>{item.details}</p> : null}</li>)}
             </ol>
           ) : <p className="rm-account__muted">No additional status changes have been recorded.</p>}
         </section>

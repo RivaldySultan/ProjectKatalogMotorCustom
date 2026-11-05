@@ -374,9 +374,7 @@ function PurchaseDetail({ id }) {
             <div><p className="rm-admin-meta">BUILD PROGRESS</p><p>
               {order.approvalStatus === 'pending_approval'
                 ? 'Awaiting admin approval'
-                : order.orderStatus === 'delivered'
-                  ? ORDER_STATUS_LABELS.delivered
-                  : order.orderStatus}
+                : ORDER_STATUS_LABELS[order.orderStatus] || order.orderStatus}
             </p></div>
             {order.shippingMethod === 'delivery' && order.orderStatus === 'ready_to_ship' ? (
               <div><p className="rm-admin-meta">DELIVERY STATUS</p><p>

@@ -16,6 +16,8 @@ const STATUS_LABELS = {
   paid: 'Payment confirmed',
   processing: 'In progress',
   ready: 'Ready for pickup / shipping',
+  ready_for_pickup: 'Ready for pickup',
+  ready_to_ship: 'Order delivery',
   delivered: 'Order arrived at destination',
   completed: 'Order completed',
   rejected: 'Order not approved',
@@ -34,7 +36,7 @@ function getStatus(order) {
   if (order.paymentStatus === 'paid') {
     if (order.orderStatus === 'processing') return 'processing';
     if (order.orderStatus === 'delivered') return 'delivered';
-    if (['ready_for_pickup', 'ready_to_ship'].includes(order.orderStatus)) return 'ready';
+    if (['ready_for_pickup', 'ready_to_ship'].includes(order.orderStatus)) return order.orderStatus;
     if (order.orderStatus === 'completed') return 'completed';
   }
   return 'pending_payment';
@@ -360,7 +362,7 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
               <ol>
                 {order.timeline.map((item) => (
                   <li key={item.id}>
-                    <strong>{item.label}</strong>
+                    <strong>{item.eventType === 'order_ready_to_ship' ? 'Order delivery' : item.label}</strong>
                     <time>{formatActivityDate(item.createdAt)}</time>
                     {item.details ? <p>{item.details}</p> : null}
                   </li>

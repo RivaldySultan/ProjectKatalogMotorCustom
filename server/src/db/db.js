@@ -1834,7 +1834,7 @@ class SqliteDatabase {
       const eventLabels = {
         processing: "Order processing started",
         ready_for_pickup: "Order ready for pickup",
-        ready_to_ship: "Order ready to ship",
+        ready_to_ship: "Order delivery",
         completed: "Order completed",
         cancelled: "Order cancelled",
       };
