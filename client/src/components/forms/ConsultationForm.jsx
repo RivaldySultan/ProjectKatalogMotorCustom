@@ -292,7 +292,7 @@ export default function ConsultationForm({
           <p>{success}</p>
         </div>
       ) : (
-        <form className="rm-consult-form" noValidate onSubmit={handleSubmit} ref={formRef}>
+        <form className="rm-consult-form" onSubmit={handleSubmit} ref={formRef}>
           {formError ? <p className="rm-consult-form__error" role="alert">{formError}</p> : null}
 
           <div className="rm-consult-form__grid">

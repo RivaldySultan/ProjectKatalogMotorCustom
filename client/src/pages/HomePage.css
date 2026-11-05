@@ -504,8 +504,8 @@
   margin-top: 12px;
 }
 
-.rm-home__builds .rm-product-card:hover .rm-product-card__action,
-.rm-home__builds .rm-product-card:focus-within .rm-product-card__action {
+.rm-home__builds .rm-product-card__action:hover,
+.rm-home__builds .rm-product-card__action:focus-visible {
   background: var(--rm-color-brick);
   border-color: var(--rm-color-brick);
   color: var(--rm-color-ivory);

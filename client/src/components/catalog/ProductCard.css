@@ -140,8 +140,8 @@
     border-color var(--rm-transition);
 }
 
-.rm-product-card:hover .rm-product-card__action,
-.rm-product-card:focus-within .rm-product-card__action {
+.rm-product-card__action:hover,
+.rm-product-card__action:focus-visible {
   background: var(--rm-accent);
   border-color: var(--rm-accent);
 }
