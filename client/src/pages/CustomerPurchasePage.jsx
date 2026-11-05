@@ -16,6 +16,7 @@ const STATUS_LABELS = {
   paid: 'Payment confirmed',
   processing: 'In progress',
   ready: 'Ready for pickup / shipping',
+  delivered: 'Order arrived at destination',
   completed: 'Order completed',
   rejected: 'Order not approved',
   cancelled: 'Order cancelled',
@@ -32,10 +33,18 @@ function getStatus(order) {
   if (order.paymentStatus === 'rejected') return 'payment_rejected';
   if (order.paymentStatus === 'paid') {
     if (order.orderStatus === 'processing') return 'processing';
+    if (order.orderStatus === 'delivered') return 'delivered';
     if (['ready_for_pickup', 'ready_to_ship'].includes(order.orderStatus)) return 'ready';
     if (order.orderStatus === 'completed') return 'completed';
   }
   return 'pending_payment';
+}
+
+function formatActivityDate(value) {
+  const date = new Date(`${String(value || '').replace(' ', 'T')}Z`);
+  return Number.isNaN(date.getTime())
+    ? 'Date unavailable'
+    : new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function getOrderSpecifications(value) {
@@ -344,6 +353,21 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
               ) : null}
             </section>
           </div>
+          <section aria-labelledby="rm-customer-order-activity-title" className="rm-customer-order__panel rm-customer-order__activity">
+            <p className="rm-meta">ORDER ACTIVITY</p>
+            <h2 id="rm-customer-order-activity-title">Order Activity</h2>
+            {Array.isArray(order.timeline) && order.timeline.length ? (
+              <ol>
+                {order.timeline.map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.label}</strong>
+                    <time>{formatActivityDate(item.createdAt)}</time>
+                    {item.details ? <p>{item.details}</p> : null}
+                  </li>
+                ))}
+              </ol>
+            ) : <p className="rm-customer-order__note">No order activity has been recorded yet.</p>}
+          </section>
           {error && order ? <p className="rm-customer-order__message is-error" role="alert">{error}</p> : null}
           <a className="rm-customer-order__whatsapp" href={whatsappLink} rel="noopener noreferrer" target="_blank">Contact Ruka on WhatsApp</a>
         </>

@@ -137,15 +137,9 @@ export default function Navbar() {
 
         <div className="rm-navbar__actions">
           {isAdmin ? (
-            <>
-              <Link className="rm-navbar__admin-link" to="/admin/dashboard">Admin Dashboard</Link>
-              <button className="rm-navbar__admin-link rm-navbar__logout" onClick={handleAdminLogout} type="button">Logout</button>
-            </>
+            <button className="rm-navbar__admin-link rm-navbar__logout" onClick={handleAdminLogout} type="button">Logout</button>
           ) : isCustomer ? (
-            <>
-              <Link className="rm-navbar__admin-link" to="/akun">My Account</Link>
-              <button className="rm-navbar__admin-link rm-navbar__logout" onClick={handleCustomerLogout} type="button">Logout</button>
-            </>
+            <button className="rm-navbar__admin-link rm-navbar__logout" onClick={handleCustomerLogout} type="button">Logout</button>
           ) : (
             <>
               <Link className="rm-navbar__admin-link" to="/login">Log In / Register</Link>
@@ -196,23 +190,13 @@ export default function Navbar() {
             );
           })}
           {isAdmin ? (
-            <>
-              <Link className="rm-navbar__panel-link rm-navbar__admin-link-mobile" onClick={closeMenu} to="/admin/dashboard">
-                <span>Admin Dashboard</span><Icon name="arrow-up-right" size={16} />
-              </Link>
-              <button className="rm-navbar__panel-link rm-navbar__admin-link-mobile rm-navbar__logout-mobile" onClick={handleAdminLogout} type="button">
-                <span>Logout</span><Icon name="arrow-up-right" size={16} />
-              </button>
-            </>
+            <button className="rm-navbar__panel-link rm-navbar__admin-link-mobile rm-navbar__logout-mobile" onClick={handleAdminLogout} type="button">
+              <span>Logout</span><Icon name="arrow-up-right" size={16} />
+            </button>
           ) : isCustomer ? (
-            <>
-              <Link className="rm-navbar__panel-link rm-navbar__admin-link-mobile" onClick={closeMenu} to="/akun">
-                <span>My Account</span><Icon name="arrow-up-right" size={16} />
-              </Link>
-              <button className="rm-navbar__panel-link rm-navbar__admin-link-mobile rm-navbar__logout-mobile" onClick={handleCustomerLogout} type="button">
-                <span>Logout</span><Icon name="arrow-up-right" size={16} />
-              </button>
-            </>
+            <button className="rm-navbar__panel-link rm-navbar__admin-link-mobile rm-navbar__logout-mobile" onClick={handleCustomerLogout} type="button">
+              <span>Logout</span><Icon name="arrow-up-right" size={16} />
+            </button>
           ) : (
             <>
               <Link className="rm-navbar__panel-link rm-navbar__admin-link-mobile" onClick={closeMenu} to="/login">

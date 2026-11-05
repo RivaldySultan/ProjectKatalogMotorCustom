@@ -145,6 +145,12 @@
   color: var(--rm-danger);
 }
 
+.rm-account__proof .rm-button--primary:disabled {
+  background: #704034;
+  border-color: #704034;
+  color: var(--rm-color-ivory);
+}
+
 .rm-account__alert {
   background: var(--rm-surface-raised);
   border-left: 3px solid var(--rm-accent);

@@ -85,6 +85,8 @@ PAYMENT_SEABANK_ACCOUNT_NAME=
 
 Methods without valid configuration are not displayed, and the endpoint will not create an order if a method is not ready. Do not use example values as active account details. Payments are still made by manual transfer; submitted proofs only move to the `waiting_verification` status. Customers can view the status and upload or update proof through their private access link. Payment is marked `paid` only after an admin verifies receipt of funds and confirms it on `/admin/purchases`. Proofs are stored in a private directory and are not accessible through public upload URLs. No payment gateway is active.
 
+For production, configure these four variables in the hosting provider's environment settings or in `server/.env` on the VPS. The local `.env` file is ignored by Git and is not included in deployments. Restart the backend service after changing its environment, then check `GET /api/purchases/payment-methods`; the response should list each configured method before enabling checkout.
+
 Public purchase endpoints:
 
 - `GET /api/purchases/payment-methods` — transfer methods with complete server configuration.

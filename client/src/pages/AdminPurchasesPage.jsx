@@ -371,7 +371,13 @@ function PurchaseDetail({ id }) {
           <section aria-label="Payment and build status" className="rm-admin-purchase-detail__status">
             <div><p className="rm-admin-meta">APPROVAL</p><p>{order.approvalStatus === 'approved' ? 'Approved' : order.approvalStatus === 'rejected' ? 'Rejected' : 'Awaiting decision'}</p></div>
             <div><p className="rm-admin-meta">PAYMENT</p><p>{order.paymentStatus}</p></div>
-            <div><p className="rm-admin-meta">BUILD PROGRESS</p><p>{order.approvalStatus === 'pending_approval' ? 'Awaiting admin approval' : order.orderStatus}</p></div>
+            <div><p className="rm-admin-meta">BUILD PROGRESS</p><p>
+              {order.approvalStatus === 'pending_approval'
+                ? 'Awaiting admin approval'
+                : order.orderStatus === 'delivered'
+                  ? ORDER_STATUS_LABELS.delivered
+                  : order.orderStatus}
+            </p></div>
             {order.shippingMethod === 'delivery' && order.orderStatus === 'ready_to_ship' ? (
               <div><p className="rm-admin-meta">DELIVERY STATUS</p><p>
                 Mark “Order arrived at destination” when the motorcycle reaches the customer. The three-day period starts at that time.
