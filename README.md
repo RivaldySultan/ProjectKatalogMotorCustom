@@ -72,7 +72,7 @@ Consultation photos are not served from the public upload directory. The existin
 
 ## Direct purchases and manual transfers
 
-Direct purchases use the `purchase_orders` schema, separate from the `orders` table used for consultations. Existing product data is automatically migrated with the `consultation_only` type and purchasing disabled. Admins must enter final specifications, price, availability type, and enable purchasing through the catalog form before the Order Now button appears. Ready stock also requires an explicit quantity.
+Direct purchases use the `purchase_orders` schema, separate from the `orders` table used for consultations. The three seeded builds are configured for made-to-order purchases with the prices and fixed specification text in `server/src/db/data.json`. A one-time startup migration enables legacy rows only when they still have the original disabled/empty purchase configuration; other product settings are preserved. Back up the SQLite database before deploying this migration. Ready-stock products still require an explicit quantity.
 
 Checkout is available at `/checkout/:productId`. After checkout, customers receive a private link at `/pesanan/:orderId#<access-token>`; the token is in the URL fragment and is sent to the API in a header, not as part of the request URL. The price, specifications, and build identity are taken from the database and saved as an order snapshot. Orders require admin approval before transfer instructions become available. Shipping costs are never estimated; an admin confirms the shipping cost before approving a delivery order. For pickup, customers can choose GoPay or SeaBank when configured on the server. Enter the correct recipient number and name in your local `server/.env`:
 
@@ -105,7 +105,7 @@ Consultation requests remain at `/admin/orders` and do not become purchase trans
 
 ## Customer accounts
 
-Customers can register at `/register`, log in at `/login`, view their profile at `/akun`, and view purchase lists and details at `/akun/pesanan`. Checkout is still available to guests; guest orders use a unique access token as before.
+Customers can register at `/register`, log in at `/login`, view their profile at `/akun`, and view purchase lists and details at `/akun/pesanan`. Direct web checkout requires a signed-in customer account; each order is linked to that account and can also be opened through its unique access token.
 
 Customer authentication uses a signed session cookie that is `HttpOnly`, `SameSite=Lax`, and valid for 24 hours. Sessions recorded in `customer_sessions` can be revoked on logout. The customer cookie and role are not used by admin middleware.
 

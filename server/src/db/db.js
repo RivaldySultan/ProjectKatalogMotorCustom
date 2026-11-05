@@ -302,6 +302,12 @@ class SqliteDatabase {
     `);
   }
   ensureProductPresentation() {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        name TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
     const existingBuilds = [
       [
         "prod_1",
@@ -334,9 +340,39 @@ class SqliteDatabase {
     const updateLegacyImage = this.db.prepare(
       "UPDATE products SET image = ? WHERE id = ? AND image = ?",
     );
+    const seedProducts = new Map(
+      JSON.parse(fs.readFileSync(DATA_FILE, "utf8"))
+        .products.map((product) => [product.id, product]),
+    );
     for (const [id, code, name, basis, legacyImage, catalogImage] of existingBuilds) {
       updateBuild.run(code, name, basis, id);
       updateLegacyImage.run(catalogImage, id, legacyImage);
+    }
+
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const migrationName = "seeded-direct-purchases-v1";
+      const migrationExists = this.db.prepare(
+        "SELECT 1 FROM schema_migrations WHERE name = ?",
+      );
+      if (!migrationExists.get(migrationName)) {
+        const enableLegacyPurchase = this.db.prepare(
+          "UPDATE products SET purchase_type = 'made_to_order', purchase_enabled = 1, purchase_specs = ? WHERE id = ? AND purchase_enabled = 0 AND purchase_type = 'consultation_only' AND TRIM(COALESCE(purchase_specs, '')) = ''",
+        );
+        for (const [id] of existingBuilds) {
+          const seedProduct = seedProducts.get(id);
+          if (seedProduct?.purchaseType === "made_to_order" && seedProduct.purchaseEnabled) {
+            enableLegacyPurchase.run(seedProduct.fixedSpecifications || "", id);
+          }
+        }
+        this.db.prepare(
+          "INSERT INTO schema_migrations (name) VALUES (?)",
+        ).run(migrationName);
+      }
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
     }
   }
 
@@ -424,8 +460,10 @@ class SqliteDatabase {
       .get();
     if (existingProducts.count === 0) {
       const insertProduct = this.db.prepare(`
-        INSERT INTO products (id, name, category_id, price, stock_status, description, image)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO products (
+          id, name, category_id, price, stock_status, description, image,
+          purchase_type, purchase_enabled, purchase_specs
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       for (const product of seedData.products) {
@@ -439,6 +477,9 @@ class SqliteDatabase {
           stockStatus,
           product.description,
           product.image,
+          product.purchaseType || "consultation_only",
+          product.purchaseEnabled ? 1 : 0,
+          product.fixedSpecifications || "",
         );
       }
     }

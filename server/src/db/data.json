@@ -34,6 +34,9 @@
       "stockStatus": 10,
       "description": "Cafe Racer style motorcycle.",
       "image": "CafeRacer_motorcycle.jpg",
+      "purchaseType": "made_to_order",
+      "purchaseEnabled": true,
+      "fixedSpecifications": "Deskripsi katalog: Cafe Racer style motorcycle.",
       "createdAt": "2024-06-01T10:00:00Z"
     },
     {
@@ -45,6 +48,9 @@
       "stockStatus": 5,
       "description": "Chopper style motorcycle.",
       "image": "Chooper_motorcycle.jpg",
+      "purchaseType": "made_to_order",
+      "purchaseEnabled": true,
+      "fixedSpecifications": "Deskripsi katalog: Chopper style motorcycle.",
       "createdAt": "2024-06-02T11:30:00Z"
     },
     {
@@ -56,6 +62,9 @@
       "stockStatus": 8,
       "description": "British Style style motorcycle.",
       "image": "britishstyle_motorcycle.jpg",
+      "purchaseType": "made_to_order",
+      "purchaseEnabled": true,
+      "fixedSpecifications": "Deskripsi katalog: British Style style motorcycle.",
       "createdAt": "2024-06-03T09:15:00Z"
     }
   ]

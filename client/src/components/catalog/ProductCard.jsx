@@ -20,10 +20,12 @@ export default function ProductCard({ product, index = 0 }) {
   const basis = getProductBasis(product);
   const whatsappOrderLink = getWhatsAppLink([
     'Hello Ruka Motorworks, I am interested in ordering this build via WhatsApp.',
+    `Product: ${product.name}`,
     `Build: ${buildName || product.name}`,
     basis ? `Motorcycle basis: ${basis}` : '',
     `Price: ${formatRupiah(product.price)}`,
   ].filter(Boolean).join('\n'));
+  const canPurchase = product.canPurchase === true || Number(product.canPurchase) === 1;
 
   return (
     <article className="rm-product-card">
@@ -70,16 +72,8 @@ export default function ProductCard({ product, index = 0 }) {
         </div>
 
         <div className="rm-product-card__actions">
-          <Link className="rm-product-card__action" to={detailPath}>
-            <span>View Details</span>
-            <Icon name="arrow-up-right" size={18} />
-          </Link>
-          {product.canPurchase === 1 ? (
+          {canPurchase ? (
             <>
-              <Link className="rm-product-card__action rm-product-card__action--purchase" to={`/checkout/${encodeURIComponent(product.id)}`}>
-                <span>Order via Web</span>
-                <Icon name="arrow-up-right" size={18} />
-              </Link>
               <a
                 className="rm-product-card__action rm-product-card__action--whatsapp"
                 href={whatsappOrderLink}
@@ -89,8 +83,19 @@ export default function ProductCard({ product, index = 0 }) {
                 <span>Order via WhatsApp</span>
                 <Icon name="arrow-up-right" size={18} />
               </a>
+              <Link
+                className="rm-product-card__action rm-product-card__action--purchase"
+                to={`/checkout/${encodeURIComponent(product.id)}`}
+              >
+                <span>Order via Web</span>
+                <Icon name="arrow-up-right" size={18} />
+              </Link>
             </>
           ) : null}
+          <Link className="rm-product-card__action" to={detailPath}>
+            <span>View Details</span>
+            <Icon name="arrow-up-right" size={18} />
+          </Link>
         </div>
       </div>
     </article>
