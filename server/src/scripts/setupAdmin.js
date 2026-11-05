@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../loadEnv.js";
 import { randomUUID } from "node:crypto";
 import { db } from "../db/db.js";
 

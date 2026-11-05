@@ -47,6 +47,8 @@ Copy the result into `JWT_SECRET` in `server/.env`. This environment file is ign
 npm run setup:admin --workspace server
 ```
 
+The API and admin setup script load `server/.env` relative to their source files, so they also find it when PM2 starts the process from the repository root.
+
 The bootstrap command is safe to run repeatedly. It creates only one account, updates credentials when the configured email matches an existing account, and refuses to create a second account with a different email. Passwords are stored in the database only as bcrypt hashes.
 
 The existing development database has one active admin account with the email `rukamotor@gmail.com`. Its existing password is not displayed or provided. After setting your password and `JWT_SECRET` in `server/.env`, run the bootstrap command, then `npm run dev`. Open `http://localhost:5173/admin/login` and sign in with the email and password from your local environment. Login issues an admin-role JWT; the dashboard and catalog mutation endpoints verify the role, identity, and active account status in the database.
