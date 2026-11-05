@@ -35,14 +35,14 @@ export async function customerRequest(url, options = {}) {
       return {
         ok: false,
         unauthorized: true,
-        message: result?.message || 'Silakan masuk ke akun pelanggan.',
+        message: result?.message || 'Please log in to your customer account.',
       };
     }
     if (!response.ok || !result?.success) {
       return {
         ok: false,
         unauthorized: false,
-        message: result?.message || `Permintaan gagal (${response.status}).`,
+        message: result?.message || `Request failed (${response.status}).`,
       };
     }
     return { ok: true, unauthorized: false, data: result.data };
@@ -50,7 +50,7 @@ export async function customerRequest(url, options = {}) {
     return {
       ok: false,
       unauthorized: false,
-      message: 'Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi.',
+      message: 'Unable to connect to the server. Check your connection and try again.',
       error,
     };
   }

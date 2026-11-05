@@ -4,23 +4,23 @@ import { usePageTitle } from '../lib/usePageTitle';
 import './NotFoundPage.css';
 
 export default function NotFoundPage() {
-  usePageTitle('Halaman tidak ditemukan — RUKA Motorworks');
+  usePageTitle('Page Not Found — RUKA Motorworks');
 
   return (
     <main id="main-content" tabIndex={-1}>
       <div className="rm-container rm-not-found">
-        <p className="rm-meta">404 / Halaman tidak ditemukan</p>
+        <p className="rm-meta">404 / Page Not Found</p>
         <p aria-hidden="true" className="rm-not-found__code">404</p>
-        <h1 className="rm-h1">Jalan ini belum ada di peta.</h1>
+        <h1 className="rm-h1">This road is not on the map yet.</h1>
         <p className="rm-not-found__copy">
-          Kembali ke beranda atau lihat katalog build yang tersedia.
+          Return home or browse the available builds in our catalog.
         </p>
         <div className="rm-not-found__actions">
           <Button to="/" variant="primary" icon={<Icon name="arrow-up-right" size={18} />}>
-            Kembali ke beranda
+            Back to Home
           </Button>
           <Button to="/katalog" variant="outline">
-            Lihat katalog
+            View Catalog
           </Button>
         </div>
       </div>

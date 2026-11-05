@@ -15,20 +15,20 @@ export function useProducts() {
         });
 
         if (!response.ok) {
-          throw new Error(`Permintaan katalog gagal (${response.status})`);
+          throw new Error(`Catalog request failed (${response.status})`);
         }
 
         const data = await response.json();
         if (!data.success || !Array.isArray(data.data)) {
-          throw new Error('Format data katalog dari server tidak valid');
+          throw new Error('The catalog data received from the server is invalid.');
         }
 
         setProducts(data.data);
         setError('');
       } catch (requestError) {
         if (!controller.signal.aborted) {
-          console.error('Gagal mengambil data dari server:', requestError);
-          setError('Katalog belum dapat dimuat. Silakan coba lagi nanti.');
+          console.error('Failed to fetch data from the server:', requestError);
+          setError('The catalog could not be loaded. Please try again later.');
         }
       } finally {
         if (!controller.signal.aborted) {

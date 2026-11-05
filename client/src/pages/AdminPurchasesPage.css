@@ -82,6 +82,7 @@
 }
 
 .rm-admin-purchases__detail-link,
+.rm-admin-purchases__delete-button,
 .rm-admin-purchase-detail__actions button,
 .rm-admin-purchase-detail__quote button,
 .rm-admin-purchase-detail__status-form button {
@@ -99,6 +100,28 @@
   padding: 0 12px;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.rm-admin-purchases__actions {
+  white-space: nowrap;
+}
+
+.rm-admin-purchases__delete-button {
+  background: transparent;
+  border: 1px solid var(--rm-color-error);
+  border-radius: var(--rm-radius);
+  color: var(--rm-color-error);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  margin-left: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.rm-admin-purchases__delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .rm-admin-purchases__pagination {
@@ -285,6 +308,7 @@
 .rm-admin-purchase-detail__status-form select:focus-visible,
 .rm-admin-purchases__pagination button:focus-visible,
 .rm-admin-purchases__detail-link:focus-visible,
+.rm-admin-purchases__delete-button:focus-visible,
 .rm-admin-purchase-detail__actions button:focus-visible,
 .rm-admin-purchase-detail__quote button:focus-visible,
 .rm-admin-purchase-detail__status-form button:focus-visible {

@@ -1,78 +1,78 @@
-# Katalog Motor Custom
+# Custom Motorcycle Catalog
 
-## Struktur
+## Structure
 
-- `client/` — React dan Vite untuk Homepage, katalog, detail motor, dan konsultasi build.
-- `server/` — Express API, route, autentikasi, dan database SQLite.
-- `server/src/db/data.json` — data awal yang digunakan saat database SQLite dibuat.
+- `client/` — React and Vite frontend for the homepage, catalog, motorcycle details, and build consultations.
+- `server/` — Express API, routes, authentication, and SQLite database.
+- `server/src/db/data.json` — seed data used when the SQLite database is created.
 
-## Menjalankan aplikasi
+## Running the application
 
-Gunakan Node.js 22 atau yang lebih baru.
+Use Node.js 22 or later.
 
 ```sh
 npm install
 npm run dev
 ```
 
-Perintah tersebut menjalankan API dan frontend sekaligus dalam satu terminal. Log dari keduanya tampil bergantian dengan penanda `[api]` dan `[web]`.
+This command runs the API and frontend together in one terminal. Their logs are interleaved with `[api]` and `[web]` prefixes.
 
 - Frontend: http://localhost:5173
 - API: http://localhost:5000
 
-Jika ingin memisahkan prosesnya, jalankan `npm run dev:server` dan `npm run dev:client` di dua terminal berbeda.
+To run them separately, use `npm run dev:server` and `npm run dev:client` in two different terminals.
 
-Frontend berjalan di Vite dan meneruskan request `/api` serta `/uploads` ke API lokal di port 5000. Untuk membuat build frontend, jalankan `npm run build`.
+The Vite frontend proxies `/api` and `/uploads` requests to the local API on port 5000. To build the frontend, run `npm run build`.
 
-## Setup admin development
+## Development admin setup
 
-Autentikasi admin tetap menggunakan tabel `admins` dan middleware khusus admin. Akun pelanggan disimpan terpisah pada tabel `customers` dan tidak mendapat akses admin. Status aktif admin disimpan pada `is_active` dan akun lama otomatis dimigrasikan menjadi aktif.
+Admin authentication uses the `admins` table and dedicated admin middleware. Customer accounts are stored separately in the `customers` table and do not have admin access. Admin active status is stored in `is_active`; existing accounts are automatically migrated as active.
 
-Salin template environment lalu isi nilai milik Anda sendiri di `server/.env`:
+Copy the environment template, then enter your own values in `server/.env`:
 
 ```powershell
 Copy-Item server\.env.example server\.env
 notepad server\.env
 ```
 
-Isi `ADMIN_EMAIL` dan `ADMIN_PASSWORD` dengan kredensial pilihan Anda. Password harus unik, minimal 8 byte, dan maksimal 72 byte. Password yang lebih panjang dan unik lebih disarankan; jangan gunakan contoh placeholder sebagai password. Buat nilai `JWT_SECRET` acak dengan perintah:
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` to your chosen credentials. The password must be unique, at least 8 bytes, and no more than 72 bytes. A longer, unique password is recommended; do not use the placeholder example as a password. Generate a random `JWT_SECRET` with:
 
 ```powershell
 node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Salin hasilnya ke `JWT_SECRET` di `server/.env`. File environment tersebut diabaikan Git. Bootstrap akun dengan:
+Copy the result into `JWT_SECRET` in `server/.env`. This environment file is ignored by Git. Bootstrap the account with:
 
 ```powershell
 npm run setup:admin --workspace server
 ```
 
-Bootstrap aman dijalankan berulang kali. Ia hanya membuat satu akun, memperbarui kredensial jika email yang dikonfigurasi cocok dengan akun yang ada, dan menolak membuat akun kedua dengan email berbeda. Password hanya disimpan dalam database sebagai hash bcrypt.
+The bootstrap command is safe to run repeatedly. It creates only one account, updates credentials when the configured email matches an existing account, and refuses to create a second account with a different email. Passwords are stored in the database only as bcrypt hashes.
 
-Database development yang sudah tersedia memiliki satu akun admin aktif dengan email `rukamotor@gmail.com`. Password lama tidak ditampilkan atau disediakan. Setelah mengisi password milik Anda dan `JWT_SECRET` di `server/.env`, jalankan bootstrap, kemudian `npm run dev`; buka `http://localhost:5173/admin/login` dan masuk menggunakan email serta password dari environment lokal. Login menerbitkan JWT role admin; Dashboard dan endpoint perubahan katalog memverifikasi role, identitas, serta status aktif akun di database.
+The existing development database has one active admin account with the email `rukamotor@gmail.com`. Its existing password is not displayed or provided. After setting your password and `JWT_SECRET` in `server/.env`, run the bootstrap command, then `npm run dev`. Open `http://localhost:5173/admin/login` and sign in with the email and password from your local environment. Login issues an admin-role JWT; the dashboard and catalog mutation endpoints verify the role, identity, and active account status in the database.
 
-## Form konsultasi build
+## Build consultation form
 
-Form konsultasi pada halaman detail motor mengirim `POST /api/consultations` sebagai `multipart/form-data`. Permintaan dan referensi build disimpan pada tabel `orders` yang sudah ada. Lampiran menerima JPG/PNG, maksimal 3 foto dengan batas 5 MB per foto, dan disimpan di `server/uploads/consultations/`.
+The consultation form on the motorcycle details page sends `POST /api/consultations` as `multipart/form-data`. Requests and build references are stored in the existing `orders` table. Attachments accept JPG/PNG, up to 3 photos with a 5 MB limit per photo, and are stored in `server/uploads/consultations/`.
 
-## Manajemen pesanan admin
+## Admin consultation management
 
-Halaman admin tersedia di `http://localhost:5173/admin/orders` dan menggunakan data konsultasi pada tabel `orders` yang sama dengan form publik. Daftar mendukung pencarian nama dan WhatsApp, filter produk/build, pengurutan tanggal, serta pagination.
+The admin page is available at `http://localhost:5173/admin/orders` and uses consultation data from the same `orders` table as the public form. The list supports name and WhatsApp searches, product/build filters, date sorting, and pagination.
 
-Endpoint daftar, detail, foto, dan perubahan status konsultasi memerlukan JWT admin yang valid:
+List, detail, photo, and consultation status update endpoints require a valid admin JWT:
 
-- `GET /api/consultations` — daftar konsultasi dan metadata filter/pagination.
-- `GET /api/consultations/:id` — identitas pelanggan, snapshot referensi build, kebutuhan, tanggal, status, dan URL foto privat.
-- `GET /api/consultations/:id/photos/:index` — mengirim foto setelah memverifikasi admin.
-- `PATCH /api/consultations/:id/status` — memperbarui status hanya ke nilai yang sudah digunakan pada tabel konsultasi.
+- `GET /api/consultations` — consultation list and filter/pagination metadata.
+- `GET /api/consultations/:id` — customer identity, build reference snapshot, requirements, date, status, and private photo URLs.
+- `GET /api/consultations/:id/photos/:index` — serves a photo after verifying the admin.
+- `PATCH /api/consultations/:id/status` — updates the status only to values already used in the consultation table.
 
-Foto konsultasi tidak disajikan dari direktori upload publik. Skema yang sudah ada telah menyediakan `status` dengan nilai default `baru`, sehingga fitur ini tidak menambah tabel atau migrasi. Belum ada daftar status/transisi bisnis lain yang didefinisikan; antarmuka hanya menawarkan nilai status yang sudah tercatat.
+Consultation photos are not served from the public upload directory. The existing schema already provides `status` with a default value of `baru`, so this feature adds no tables or migrations. No other business status or transition list has been defined; the interface offers only status values already recorded.
 
-## Pembelian langsung dan transfer manual
+## Direct purchases and manual transfers
 
-Pembelian langsung memiliki skema `purchase_orders` yang terpisah dari tabel `orders` untuk konsultasi. Data produk lama otomatis bermigrasi dengan jenis `consultation_only` dan pembelian nonaktif. Admin harus mengisi spesifikasi final, harga, jenis ketersediaan, dan mengaktifkan pembelian melalui form katalog sebelum tombol Pesan Sekarang ditampilkan. Ready stock juga memerlukan jumlah stok yang eksplisit.
+Direct purchases use the `purchase_orders` schema, separate from the `orders` table used for consultations. Existing product data is automatically migrated with the `consultation_only` type and purchasing disabled. Admins must enter final specifications, price, availability type, and enable purchasing through the catalog form before the Order Now button appears. Ready stock also requires an explicit quantity.
 
-Checkout tersedia pada `/checkout/:productId`. Setelah checkout, pelanggan menerima tautan privat `/pesanan/:orderId#<access-token>`; token ada pada fragment URL dan dikirim ke API melalui header, bukan sebagai bagian dari request URL. Harga, spesifikasi dan identitas build diambil dari database dan disimpan sebagai snapshot pesanan. Pesanan menunggu persetujuan admin sebelum instruksi transfer terbuka. Pengiriman tidak menggunakan ongkir rekaan; admin mengonfirmasi ongkir sebelum dapat menyetujui pesanan. Untuk pengambilan langsung, pelanggan memilih GoPay atau SeaBank yang telah dikonfigurasi server. Isi environment lokal `server/.env` dengan nomor serta nama penerima yang benar:
+Checkout is available at `/checkout/:productId`. After checkout, customers receive a private link at `/pesanan/:orderId#<access-token>`; the token is in the URL fragment and is sent to the API in a header, not as part of the request URL. The price, specifications, and build identity are taken from the database and saved as an order snapshot. Orders require admin approval before transfer instructions become available. Shipping costs are never estimated; an admin confirms the shipping cost before approving a delivery order. For pickup, customers can choose GoPay or SeaBank when configured on the server. Enter the correct recipient number and name in your local `server/.env`:
 
 ```env
 PAYMENT_GOPAY_NUMBER=
@@ -81,44 +81,44 @@ PAYMENT_SEABANK_ACCOUNT_NUMBER=
 PAYMENT_SEABANK_ACCOUNT_NAME=
 ```
 
-Metode yang tidak memiliki konfigurasi valid tidak ditampilkan dan endpoint tidak membuat pesanan jika metode tersebut belum siap. Jangan mengisi nilai contoh sebagai rekening aktif. Pembayaran masih transfer manual; bukti hanya masuk ke status `waiting_verification`. Pelanggan dapat melihat status, mengunggah bukti, dan memperbarui status melalui tautan akses privat. Pembayaran berstatus `paid` hanya setelah admin memeriksa dana masuk dan mengonfirmasi di halaman `/admin/purchases`. Bukti disimpan di direktori privat dan tidak diakses melalui URL upload publik. Tidak ada payment gateway aktif.
+Methods without valid configuration are not displayed, and the endpoint will not create an order if a method is not ready. Do not use example values as active account details. Payments are still made by manual transfer; submitted proofs only move to the `waiting_verification` status. Customers can view the status and upload or update proof through their private access link. Payment is marked `paid` only after an admin verifies receipt of funds and confirms it on `/admin/purchases`. Proofs are stored in a private directory and are not accessible through public upload URLs. No payment gateway is active.
 
-Endpoint pembelian publik:
+Public purchase endpoints:
 
-- `GET /api/purchases/payment-methods` — daftar metode transfer yang konfigurasi server-nya lengkap.
-- `POST /api/purchases` — membuat pesanan; harga dan produk divalidasi server-side, dengan kunci idempotensi.
-- `GET /api/purchases/:id` — melihat status pesanan menggunakan header `X-Order-Access-Token`.
-- `POST /api/purchases/:id/payment-proof` — mengirim bukti JPG/PNG melalui header akses order.
+- `GET /api/purchases/payment-methods` — transfer methods with complete server configuration.
+- `POST /api/purchases` — creates an order; price and product are validated server-side, with an idempotency key.
+- `GET /api/purchases/:id` — retrieves order status using the `X-Order-Access-Token` header.
+- `POST /api/purchases/:id/payment-proof` — submits JPG/PNG proof using the order access header.
 
-Endpoint admin memerlukan autentikasi admin:
+Admin endpoints require admin authentication:
 
-- `GET /api/purchases/admin` dan `GET /api/purchases/admin/:id` — daftar dan detail pembelian.
-- `PATCH /api/purchases/admin/:id/approval` — menyetujui pesanan atau menolaknya dengan alasan; hanya pesanan pending yang dapat diputuskan.
-- `GET /api/purchases/admin/:id/proof` — bukti pembayaran privat.
-- `POST /api/purchases/admin/:id/shipping-quote` — menyimpan ongkir yang telah dikonfirmasi.
-- `POST /api/purchases/admin/:id/payment-review` — mengonfirmasi atau menolak bukti.
-- `PATCH /api/purchases/admin/:id/status` — memperbarui progres setelah pembayaran dikonfirmasi.
+- `GET /api/purchases/admin` and `GET /api/purchases/admin/:id` — purchase list and details.
+- `PATCH /api/purchases/admin/:id/approval` — approves an order or rejects it with a reason; only pending orders can be decided.
+- `GET /api/purchases/admin/:id/proof` — private payment proof.
+- `POST /api/purchases/admin/:id/shipping-quote` — saves the confirmed shipping cost.
+- `POST /api/purchases/admin/:id/payment-review` — confirms or rejects payment proof.
+- `PATCH /api/purchases/admin/:id/status` — updates progress after payment is confirmed.
 
-Permintaan konsultasi tetap berada di `/admin/orders` dan tidak menjadi transaksi pembelian. Tidak ada migrasi yang menghapus atau mengubah data konsultasi lama.
+Consultation requests remain at `/admin/orders` and do not become purchase transactions. No migration removes or changes existing consultation data.
 
-## Akun pelanggan
+## Customer accounts
 
-Pelanggan dapat mendaftar di `/register`, login di `/login`, melihat profil di `/akun`, dan membuka daftar serta detail pembelian di `/akun/pesanan`. Checkout tetap dapat dilakukan sebagai tamu; pesanan tamu menggunakan token akses unik seperti sebelumnya.
+Customers can register at `/register`, log in at `/login`, view their profile at `/akun`, and view purchase lists and details at `/akun/pesanan`. Checkout is still available to guests; guest orders use a unique access token as before.
 
-Autentikasi pelanggan memakai cookie sesi bertanda tangan yang `HttpOnly`, `SameSite=Lax`, dan berlaku 24 jam. Sesi yang dicatat pada `customer_sessions` dapat dicabut saat logout. Cookie dan role pelanggan tidak digunakan oleh middleware admin.
+Customer authentication uses a signed session cookie that is `HttpOnly`, `SameSite=Lax`, and valid for 24 hours. Sessions recorded in `customer_sessions` can be revoked on logout. The customer cookie and role are not used by admin middleware.
 
-Tabel `customers` menyimpan profil, hash bcrypt, dan persetujuan privasi. `purchase_orders.customer_id` menghubungkan order akun ke pemiliknya; nilai ini selalu ditentukan dari sesi server, bukan dari input checkout. Klaim order tamu memerlukan token akses pesanan serta kecocokan email dan nomor WhatsApp dengan akun.
+The `customers` table stores profiles, bcrypt hashes, and privacy consent. `purchase_orders.customer_id` links account orders to their owner; this value is always determined from the server session, not checkout input. Claiming a guest order requires its access token and an email address and WhatsApp number matching the account.
 
-Endpoint akun pelanggan:
+Customer account endpoints:
 
-- `POST /api/customers/register` dan `POST /api/customers/login` — validasi data, password hashing, dan pembuatan sesi.
-- `POST /api/customers/logout`, `GET /api/customers/me`, dan `PATCH /api/customers/me` — cabut sesi, baca profil, dan ubah profil sendiri.
-- `GET /api/customers/orders` dan `GET /api/customers/orders/:id` — daftar, filter, pagination, serta detail pesanan milik sesi aktif.
-- `POST /api/customers/claims/:id` — tautkan pesanan tamu setelah token akses dan kontak diverifikasi.
-- `GET /api/customers/orders/:id/proofs/:proofId` — lihat bukti setelah verifikasi kepemilikan.
+- `POST /api/customers/register` and `POST /api/customers/login` — validate data, hash passwords, and create sessions.
+- `POST /api/customers/logout`, `GET /api/customers/me`, and `PATCH /api/customers/me` — revoke a session, read a profile, and update the signed-in customer's profile.
+- `GET /api/customers/orders` and `GET /api/customers/orders/:id` — list, filter, paginate, and view orders belonging to the active session.
+- `POST /api/customers/claims/:id` — link a guest order after verifying its access token and contact information.
+- `GET /api/customers/orders/:id/proofs/:proofId` — view proof after verifying ownership.
 
-Pengiriman bukti tetap melalui `POST /api/purchases/:id/payment-proof`. Pemilik dapat mengirim atau mengganti bukti saat menunggu pembayaran, menunggu verifikasi, atau setelah bukti ditolak. Setiap versi disimpan privat pada `purchase_payment_proofs`; file lama tidak dihapus saat bukti diganti. Status `paid` hanya dapat ditetapkan oleh admin setelah memeriksa dana masuk.
+Proof is still submitted through `POST /api/purchases/:id/payment-proof`. Owners can submit or replace proof while awaiting payment, awaiting verification, or after a proof is rejected. Each version is stored privately in `purchase_payment_proofs`; older files are not deleted when proof is replaced. Only an admin can set the `paid` status after verifying receipt of funds.
 
-`purchase_order_events` menyimpan aktivitas yang benar-benar terjadi, bukan langkah timeline yang diperkirakan. Migrasi skema menambah tabel pelanggan, sesi, versi bukti, event pesanan, serta relasi nullable `customer_id` tanpa menghapus pesanan atau konsultasi lama.
+`purchase_order_events` records actions that actually occurred, not predicted timeline steps. The schema migration adds customer, session, proof version, and order event tables, along with a nullable `customer_id` relationship, without deleting existing orders or consultations.
 
-Pengaturan rahasia lokal disimpan di `server/.env`. Jangan masukkan file `.env` ke Git.
+Local secrets are stored in `server/.env`. Do not add `.env` files to Git.

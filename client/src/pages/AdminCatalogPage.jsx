@@ -21,11 +21,11 @@ function ProductTable({ products, onDelete }) {
       <table className="rm-admin-catalog__table">
         <thead>
           <tr>
-            <th scope="col">Gambar</th>
-            <th className="is-sticky" scope="col">Nama</th>
+            <th scope="col">Image</th>
+            <th className="is-sticky" scope="col">Name</th>
             <th scope="col">Basis</th>
-            <th scope="col">Harga</th>
-            <th scope="col">Aksi</th>
+            <th scope="col">Price</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -48,9 +48,9 @@ function ProductTable({ products, onDelete }) {
                 <th className="is-sticky rm-admin-catalog__identity" scope="row">
                   <span className="rm-admin-catalog__name">{product.name}</span>
                   <span className="rm-admin-meta">
-                    {getProductBuildCode(product) || 'BUILD'} / {getProductBuildName(product) || 'Build khusus'}
+                    {getProductBuildCode(product) || 'BUILD'} / {getProductBuildName(product) || 'Custom build'}
                   </span>
-                  <span className="rm-admin-catalog__category">{product.categoryName || 'Kategori tidak tersedia'}</span>
+                  <span className="rm-admin-catalog__category">{product.categoryName || 'Category unavailable'}</span>
                 </th>
                 <td>{getProductBasis(product) || '—'}</td>
                 <td className="rm-admin-catalog__price">{formatRupiah(product.price)}</td>
@@ -64,12 +64,12 @@ function ProductTable({ products, onDelete }) {
                       Edit
                     </Link>
                     <button
-                      aria-label={`Hapus ${product.name}`}
+                      aria-label={`Delete ${product.name}`}
                       className="rm-admin-button rm-admin-button--danger"
                       onClick={() => onDelete(product)}
                       type="button"
                     >
-                      Hapus
+                      Delete
                     </button>
                   </div>
                 </td>
@@ -102,11 +102,11 @@ function DeleteDialog({ product, isDeleting, error, onCancel, onConfirm }) {
         className="rm-admin-catalog__dialog"
         role="alertdialog"
       >
-        <p className="rm-admin-meta">KONFIRMASI / HAPUS MOTOR</p>
-        <h2 id="rm-admin-delete-title">Hapus {product.name}?</h2>
+        <p className="rm-admin-meta">CONFIRM / DELETE MOTORCYCLE</p>
+        <h2 id="rm-admin-delete-title">Delete {product.name}?</h2>
         <p>
-          Motor ini tidak lagi tampil di katalog publik. Data permintaan konsultasi
-          historis tetap tersimpan.
+          This motorcycle will no longer appear in the public catalog. Historical
+          consultation requests will remain saved.
         </p>
         {error ? <p className="rm-admin-form__error" role="alert">{error}</p> : null}
         <div className="rm-admin-catalog__dialog-actions">
@@ -117,7 +117,7 @@ function DeleteDialog({ product, isDeleting, error, onCancel, onConfirm }) {
             ref={cancelButton}
             type="button"
           >
-            Batal
+            Cancel
           </button>
           <button
             className="rm-admin-button rm-admin-button--danger"
@@ -125,7 +125,7 @@ function DeleteDialog({ product, isDeleting, error, onCancel, onConfirm }) {
             onClick={onConfirm}
             type="button"
           >
-            {isDeleting ? 'Menghapus...' : 'Hapus motor'}
+            {isDeleting ? 'Deleting...' : 'Delete motorcycle'}
           </button>
         </div>
       </section>
@@ -150,7 +150,7 @@ function AdminCatalogListPage() {
   const [deleteError, setDeleteError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  usePageTitle('Kelola Katalog — RUKA Motorworks');
+  usePageTitle('Manage Catalog — RUKA Motorworks');
 
   const loadProducts = async () => {
     const result = await adminRequest('/api/products');
@@ -165,7 +165,7 @@ function AdminCatalogListPage() {
       return;
     }
     if (!Array.isArray(result.data)) {
-      setError('Format data katalog dari server tidak valid.');
+      setError('The catalog data received from the server is invalid.');
       setIsLoading(false);
       return;
     }
@@ -215,7 +215,7 @@ function AdminCatalogListPage() {
       return;
     }
     setProducts((current) => current.filter((product) => product.id !== productToDelete.id));
-    setNotice(`${productToDelete.name} berhasil dihapus dari katalog.`);
+    setNotice(`${productToDelete.name} was removed from the catalog.`);
     setProductToDelete(null);
   };
 
@@ -231,22 +231,22 @@ function AdminCatalogListPage() {
           <nav aria-label="Breadcrumb" className="rm-admin-catalog__breadcrumb">
             <Link to="/admin/dashboard">Dashboard</Link>
             <span aria-hidden="true">/</span>
-            <span aria-current="page">Kelola Katalog</span>
+            <span aria-current="page">Manage Catalog</span>
           </nav>
-          <p className="rm-admin-meta">KATALOG / INVENTARIS</p>
-          <h1>KELOLA KATALOG</h1>
+          <p className="rm-admin-meta">CATALOG / INVENTORY</p>
+          <h1>MANAGE CATALOG</h1>
           <p className="rm-admin__welcome">
-            Kelola identitas, foto, dan harga build yang tampil di katalog publik.
+            Manage the names, photos, and prices of builds shown in the public catalog.
           </p>
         </div>
         <div className="rm-admin-catalog__intro-actions">
           <Link className="rm-admin__public-link" to="/">
-            Lihat Website Publik
+            View Public Website
             <Icon name="arrow-up-right" size={16} />
           </Link>
           <Link className="rm-admin-button rm-admin-button--primary" to="/admin/catalog/new">
             <span aria-hidden="true">+</span>
-            Tambah Motor Baru
+            Add Motorcycle
           </Link>
         </div>
       </section>
@@ -257,15 +257,15 @@ function AdminCatalogListPage() {
       <section aria-labelledby="rm-admin-catalog-title" className="rm-admin-panel rm-admin-catalog">
         <div className="rm-admin-panel__heading">
           <div>
-            <p className="rm-admin-meta">DATA KATALOG / {String(products.length).padStart(2, '0')} MOTOR</p>
-            <h2 id="rm-admin-catalog-title">MOTOR TERDAFTAR</h2>
+            <p className="rm-admin-meta">CATALOG / {String(products.length).padStart(2, '0')} MOTORCYCLES</p>
+            <h2 id="rm-admin-catalog-title">LISTED MOTORCYCLES</h2>
           </div>
           <label className="rm-admin-catalog__search">
             <Icon name="search" size={16} />
-            <span className="rm-visually-hidden">Cari nama atau basis motor</span>
+            <span className="rm-visually-hidden">Search by name or motorcycle basis</span>
             <input
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Cari nama atau basis motor"
+              placeholder="Search by name or motorcycle basis"
               type="search"
               value={query}
             />
@@ -273,25 +273,25 @@ function AdminCatalogListPage() {
         </div>
         <p aria-live="polite" className="rm-admin-catalog__count">
           {isLoading
-            ? 'Memuat katalog...'
-            : `Menampilkan ${visibleProducts.length} dari ${products.length} motor terdaftar.`}
+            ? 'Loading catalog...'
+            : `Showing ${visibleProducts.length} of ${products.length} listed motorcycles.`}
         </p>
         {error ? (
           <div className="rm-admin__error" role="alert">
             <p>{error}</p>
-            <button onClick={handleRetry} type="button">Coba lagi</button>
+            <button onClick={handleRetry} type="button">Try again</button>
           </div>
         ) : isLoading ? (
-          <p aria-live="polite" className="rm-admin-catalog__state">Memuat motor dari database...</p>
+          <p aria-live="polite" className="rm-admin-catalog__state">Loading motorcycles from the database...</p>
         ) : visibleProducts.length ? (
           <ProductTable onDelete={setDeleteTarget} products={visibleProducts} />
         ) : (
           <div className="rm-admin-empty rm-admin-catalog__empty">
-            <h3>{products.length ? 'Tidak ada motor yang cocok.' : 'Belum ada motor di katalog.'}</h3>
+            <h3>{products.length ? 'No matching motorcycles.' : 'No motorcycles in the catalog yet.'}</h3>
             <p>
               {products.length
-                ? 'Coba kata kunci nama, seri, kategori, atau basis yang lain.'
-                : 'Motor yang disimpan akan muncul di tabel ini dan katalog publik.'}
+                ? 'Try another name, series, category, or basis keyword.'
+                : 'Saved motorcycles will appear here and in the public catalog.'}
             </p>
           </div>
         )}

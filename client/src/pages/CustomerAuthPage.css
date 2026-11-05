@@ -90,7 +90,36 @@
 }
 
 .rm-customer-auth__switch a {
-  color: var(--rm-text);
+  color: #f08a72;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.rm-customer-auth__switch a:hover {
+  color: #ffad98;
+}
+
+.rm-customer-auth__switch a:focus-visible {
+  outline: 2px solid var(--rm-focus);
+  outline-offset: 3px;
+}
+
+.rm-customer-auth__form .rm-button--primary {
+  background: var(--rm-color-brick);
+  border-color: var(--rm-color-brick);
+  color: var(--rm-color-ivory);
+}
+
+.rm-customer-auth__form .rm-button--primary:hover:not(:disabled) {
+  background: var(--rm-color-brick-hover);
+  border-color: var(--rm-color-brick-hover);
+}
+
+.rm-customer-auth__form .rm-button--primary:disabled {
+  background: #704034;
+  border-color: #704034;
+  color: var(--rm-color-ivory);
 }
 
 .rm-customer-auth__guest {

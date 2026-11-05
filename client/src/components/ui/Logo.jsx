@@ -4,7 +4,7 @@ import './Logo.css';
 export default function Logo({ href = '/', tone = 'light', className = '', onClick }) {
   return (
     <Link
-      aria-label="RUKA Motorworks, kembali ke beranda"
+      aria-label="RUKA Motorworks, back to home"
       className={`rm-logo rm-logo--${tone}${className ? ` ${className}` : ''}`}
       onClick={onClick}
       to={href}

@@ -10,22 +10,23 @@ import {
   getProductBuildName,
   getProductIndex,
 } from '../lib/products';
+import { getWhatsAppLink } from '../lib/whatsapp';
 import { usePageTitle } from '../lib/usePageTitle';
 import { CONSULTATION_FORM_ID, getConsultationPath } from '../lib/router';
 import './ProductDetailPage.css';
 
 const STAGES = [
-  { number: '01', title: 'Konsultasi', description: 'Ceritakan kebutuhan, motor donor, dan kisaran anggaran.' },
-  { number: '02', title: 'Konsep & rencana', description: 'Sepakati desain, lingkup pekerjaan, biaya, dan jadwal.' },
-  { number: '03', title: 'Pengerjaan', description: 'Fabrikasi, perakitan, serta finishing sesuai konsep.' },
-  { number: '04', title: 'Pemeriksaan akhir', description: 'Pemeriksaan fungsi, penyesuaian, lalu serah terima.' },
+  { number: '01', title: 'Consultation', description: 'Tell us about your needs, donor motorcycle, and budget range.' },
+  { number: '02', title: 'Concept & plan', description: 'Agree on the design, scope of work, cost, and schedule.' },
+  { number: '03', title: 'Build & assembly', description: 'Fabrication, assembly, and finishing based on the agreed concept.' },
+  { number: '04', title: 'Final inspection', description: 'Functional checks, adjustments, and handover.' },
 ];
 
 const SILVERLINE_EXAMPLE_SPECS = {
-  engine: '125 cc · 1 silinder · 4 tak',
-  transmission: 'Manual · 5 percepatan',
-  cockpit: 'Setang clip-on · panel ringkas',
-  finishing: 'Jok tunggal · perak sikat',
+  engine: '125 cc · 1 cylinder · 4-stroke',
+  transmission: 'Manual · 5-speed',
+  cockpit: 'Clip-on handlebars · compact instrument panel',
+  finishing: 'Single seat · brushed silver',
 };
 
 export default function ProductDetailPage({ productId, products, isLoading, error }) {
@@ -35,15 +36,15 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
   usePageTitle(
     product
       ? `${product.name} — RUKA Motorworks`
-      : 'Build tidak ditemukan — RUKA Motorworks',
+      : 'Build Not Found — RUKA Motorworks',
   );
 
   if (isLoading) {
     return (
       <main id="main-content" tabIndex={-1}>
         <div className="rm-container rm-detail-state">
-          <p className="rm-meta">Memuat build</p>
-          <h1 className="rm-h1">Menyiapkan detail...</h1>
+          <p className="rm-meta">Loading build</p>
+          <h1 className="rm-h1">Preparing details...</h1>
         </div>
       </main>
     );
@@ -53,20 +54,20 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
     return (
       <main id="main-content" tabIndex={-1}>
         <div className="rm-container rm-detail-state">
-          <p className="rm-meta">404 / Build tidak ditemukan</p>
+          <p className="rm-meta">404 / Build Not Found</p>
           <h1 className="rm-h1">
-            {error || 'Build ini tidak ada di katalog.'}
+            {error || 'This build is not in the catalog.'}
           </h1>
           <p className="rm-detail-state__copy">
-            Kembali ke katalog untuk melihat build yang tersedia, atau mulai
-            dari konsultasi bila Anda punya arah sendiri.
+            Return to the catalog to browse available builds, or start with a
+            consultation if you already have a direction in mind.
           </p>
           <div className="rm-detail-state__actions">
             <Button to="/katalog" variant="primary" icon={<Icon name="arrow-up-right" size={18} />}>
-              Kembali ke katalog
+              Back to Catalog
             </Button>
             <Button to={getConsultationPath(products[0]?.id)} variant="outline">
-              Konsultasi build
+              Discuss a Build
             </Button>
           </div>
         </div>
@@ -78,14 +79,20 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
   const buildCode = getProductBuildCode(product) || String(product.id).toUpperCase();
   const buildName = getProductBuildName(product) || 'Custom build';
   const basis = product.basis || getProductBasis(product);
+  const whatsappOrderLink = getWhatsAppLink([
+    'Hello Ruka Motorworks, I am interested in ordering this build via WhatsApp.',
+    `Build: ${buildName}`,
+    basis ? `Motorcycle basis: ${basis}` : '',
+    `Price: ${formatRupiah(product.price)}`,
+  ].filter(Boolean).join('\n'));
   const isSilverlineExample = String(product.id) === 'prod_1';
   const usesPdfSpecExample = isSilverlineExample
     && ['engine', 'transmission', 'cockpit', 'finishing'].some((field) => !product[field]);
   const description = product.description
     || (isSilverlineExample
-      ? 'Garis bersih. Sikap merunduk. Interpretasi café racer untuk mesin yang sudah kamu kenal.'
-      : 'Detail build dikonfirmasi saat konsultasi.');
-  const confirmedLater = 'Dikonfirmasi saat konsultasi';
+      ? 'Clean lines. A crouched stance. A café racer interpretation of an engine you already know.'
+      : 'Build details will be confirmed during consultation.');
+  const confirmedLater = 'To be confirmed during consultation';
   const fixedSpecifications = String(product.fixedSpecifications || '')
     .split(/\r?\n/)
     .map((line) => {
@@ -96,22 +103,22 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
     })
     .filter(Boolean);
   const specs = [
-    ['Basis motor', basis || confirmedLater],
-    ['Arah desain', product.categoryName || confirmedLater],
+    ['Donor motorcycle', basis || confirmedLater],
+    ['Design direction', product.categoryName || confirmedLater],
     [
-      'Mesin',
+      'Engine',
       product.engine || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.engine : confirmedLater),
     ],
     [
-      'Transmisi',
+      'Transmission',
       product.transmission || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.transmission : confirmedLater),
     ],
     [
-      'Kokpit',
+      'Cockpit',
       product.cockpit || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.cockpit : confirmedLater),
     ],
     [
-      'Jok & finishing',
+      'Seat & finish',
       product.finishing || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.finishing : confirmedLater),
     ],
     ...fixedSpecifications,
@@ -119,11 +126,11 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
 
   return (
     <main id="main-content" tabIndex={-1}>
-      <nav aria-label="Jejak navigasi" className="rm-breadcrumb">
+      <nav aria-label="Breadcrumb" className="rm-breadcrumb">
         <div className="rm-container rm-breadcrumb__inner">
-          <Link to="/">Beranda</Link>
+          <Link to="/">Home</Link>
           <span aria-hidden="true">/</span>
-          <Link to="/katalog">Katalog</Link>
+          <Link to="/katalog">Catalog</Link>
           <span aria-hidden="true">/</span>
           <span aria-current="page">{product.name}</span>
         </div>
@@ -138,7 +145,7 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
         <div className="rm-detail-hero__shade" />
         <div className="rm-container rm-detail-hero__content">
           <p className="rm-eyebrow">
-            {buildCode} / {product.categoryName || 'Custom'} / {basis || 'Basis dibahas saat konsultasi'}
+            {buildCode} / {product.categoryName || 'Custom'} / {basis || 'Motor basis to be discussed during consultation'}
           </p>
           <h1>{product.name}</h1>
           <p className="rm-detail-hero__series">{buildName}</p>
@@ -149,26 +156,37 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
       <section className="rm-price-bar">
         <div className="rm-container rm-price-bar__inner">
           <div className="rm-price-bar__price-block">
-            <p className="rm-meta">Harga build</p>
+            <p className="rm-meta">Build price</p>
             <p className="rm-price-bar__price">{formatRupiah(product.price)}</p>
           </div>
           <p className="rm-price-bar__note">
             {product.canPurchase === 1
-              ? `Harga dan spesifikasi build ini sudah ditetapkan untuk pembelian langsung.${product.purchaseType === 'made_to_order' && product.estimatedBuildDays ? ` Estimasi pengerjaan ${product.estimatedBuildDays} hari.` : ''}`
-              : 'Harga katalog sebagai acuan awal. Lingkup pekerjaan dan kondisi motor donor dikonfirmasi saat konsultasi.'}
+              ? `The price and specifications for this build are set for direct purchase.${product.purchaseType === 'made_to_order' && product.estimatedBuildDays ? ` Estimated build time: ${product.estimatedBuildDays} days.` : ''}`
+              : 'The catalog price is an initial reference. The scope of work and donor motorcycle condition will be confirmed during consultation.'}
           </p>
           <div className="rm-price-bar__actions">
             {product.canPurchase === 1 ? (
-              <Button
-                to={`/checkout/${encodeURIComponent(product.id)}`}
-                icon={<Icon name="arrow-up-right" size={18} />}
-                variant="primary"
-              >
-                Pesan Sekarang
-              </Button>
+              <>
+                <Button
+                  to={`/checkout/${encodeURIComponent(product.id)}`}
+                  icon={<Icon name="arrow-up-right" size={18} />}
+                  variant="primary"
+                >
+                  Order via Web
+                </Button>
+                <Button
+                  href={whatsappOrderLink}
+                  icon={<Icon name="arrow-up-right" size={18} />}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  variant="outline"
+                >
+                  Order via WhatsApp
+                </Button>
+              </>
             ) : (
               <p className="rm-price-bar__unavailable">
-                Pembelian langsung belum tersedia untuk build ini.
+                Direct purchase is not available for this build.
               </p>
             )}
             <Button
@@ -176,7 +194,7 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
               icon={<Icon name="arrow-down" size={18} />}
               variant="outline"
             >
-              Konsultasi Dulu
+              Discuss Your Build
             </Button>
           </div>
         </div>
@@ -190,12 +208,12 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
               loading="lazy"
               src={productImage}
             />
-            <p className="rm-meta">Detail / {product.name} — {product.categoryName || 'Custom'}</p>
+            <p className="rm-meta">Details / {product.name} — {product.categoryName || 'Custom'}</p>
           </div>
 
           <div className="rm-specs__body">
-            <p className="rm-eyebrow">01 / Di balik siluet</p>
-            <h2 className="rm-h2">Spesifikasi teknis</h2>
+            <p className="rm-eyebrow">01 / Beneath the silhouette</p>
+            <h2 className="rm-h2">Technical specifications</h2>
 
             <dl className="rm-spec-list">
               {specs.map(([label, value]) => (
@@ -208,11 +226,11 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
 
             <p className="rm-specs__note">
               {usesPdfSpecExample
-                ? 'Contoh spesifikasi, bukan data teknis terverifikasi. Seluruh detail dikonfirmasi saat konsultasi.'
-                : product.specNotes || 'Detail spesifikasi dikonfirmasi saat konsultasi.'}
+                ? 'Example specifications, not verified technical data. All details will be confirmed during consultation.'
+                : product.specNotes || 'Specification details will be confirmed during consultation.'}
             </p>
             <p className="rm-specs__caption">
-              {buildName} / Proporsi dan detail yang dibahas bersama
+              {buildName} / Proportions and details discussed together
             </p>
           </div>
         </div>
@@ -221,8 +239,8 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
       <section className="rm-detail-stages">
         <div className="rm-container">
           <div className="rm-detail-stages__heading">
-            <p className="rm-eyebrow">02 / Dari ide ke jalan</p>
-            <h2 className="rm-h2">Mulai dari obrolan.</h2>
+            <p className="rm-eyebrow">02 / From concept to road</p>
+            <h2 className="rm-h2">Start with a conversation.</h2>
           </div>
           <ol className="rm-stage-list">
             {STAGES.map((stage) => (
@@ -239,12 +257,12 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
       <section className="rm-detail-consult theme-editorial" id={CONSULTATION_FORM_ID}>
         <div className="rm-container rm-detail-consult__grid">
           <div className="rm-detail-consult__intro">
-            <p className="rm-eyebrow">03 / Ceritamu dimulai di sini</p>
-            <h2 className="rm-h2">Mulai konsultasi build.</h2>
+            <p className="rm-eyebrow">03 / Your story starts here</p>
+            <h2 className="rm-h2">Start a build consultation.</h2>
             <p>
-              Sudah menemukan arah? Ceritakan kebutuhanmu. Kami akan
-              menghubungi lewat WhatsApp untuk membahas kemungkinan build{' '}
-              {product.name}.
+              Found a direction? Tell us what you need. We will
+              contact you on WhatsApp to discuss your build options
+              {product.name === 'Thunder' ? '' : ` for ${product.name}`}.
             </p>
           </div>
 

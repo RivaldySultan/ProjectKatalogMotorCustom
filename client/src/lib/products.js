@@ -5,7 +5,7 @@ const FALLBACK_IMAGES = [
 ];
 
 export const categoryOptions = [
-  { id: 'all', number: '00', label: 'Semua build' },
+  { id: 'all', number: '00', label: 'All Builds' },
   { id: 'cafe-racer', number: '01', label: 'Café Racer' },
   { id: 'chopper', number: '02', label: 'Chopper' },
   { id: 'british-style', number: '03', label: 'British Style' },
@@ -112,7 +112,7 @@ export function getFallbackImage(index = 0) {
 
 export function formatRupiah(amount) {
   const numericAmount = Number(amount);
-  if (!Number.isFinite(numericAmount)) return 'Hubungi kami';
+  if (!Number.isFinite(numericAmount)) return 'Contact us';
 
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',

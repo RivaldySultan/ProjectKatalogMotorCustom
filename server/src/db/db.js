@@ -18,7 +18,7 @@ function getPurchaseSpecifications(value) {
     .map((line) => {
       const separator = line.indexOf(":");
       if (separator <= 0 || !line.slice(separator + 1).trim()) {
-        throw new Error("Spesifikasi pembelian harus menggunakan format label: nilai.");
+        throw new Error("Purchase specifications must use the Label: value format.");
       }
       return {
         label: line.slice(0, separator).trim(),
@@ -202,6 +202,7 @@ class SqliteDatabase {
         order_status TEXT NOT NULL
           CHECK (order_status IN ('awaiting_payment', 'awaiting_shipping_quote', 'processing', 'ready_for_pickup', 'ready_to_ship', 'completed', 'cancelled')),
         payment_proof TEXT,
+        admin_hidden_at TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
@@ -231,6 +232,9 @@ class SqliteDatabase {
     if (!columns.has("customer_id")) {
       this.db.exec("ALTER TABLE purchase_orders ADD COLUMN customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL");
     }
+    if (!columns.has("admin_hidden_at")) {
+      this.db.exec("ALTER TABLE purchase_orders ADD COLUMN admin_hidden_at TEXT");
+    }
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_purchase_orders_customer ON purchase_orders(customer_id, created_at DESC)");
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS purchase_order_events (
@@ -255,7 +259,7 @@ class SqliteDatabase {
     `);
     this.db.prepare(`
       INSERT INTO purchase_order_events (id, purchase_order_id, event_type, label, actor_type, created_at)
-      SELECT lower(hex(randomblob(16))), po.id, 'order_created', 'Pesanan dibuat', 'system', po.created_at
+      SELECT lower(hex(randomblob(16))), po.id, 'order_created', 'Order created', 'system', po.created_at
       FROM purchase_orders po
       WHERE NOT EXISTS (
         SELECT 1 FROM purchase_order_events e
@@ -560,7 +564,7 @@ class SqliteDatabase {
 
       if (admins.length > 1) {
         throw new Error(
-          "Lebih dari satu akun admin ditemukan; rapikan akun sebelum menjalankan setup.",
+          "More than one admin account was found; clean up the accounts before running setup.",
         );
       }
 
@@ -570,7 +574,7 @@ class SqliteDatabase {
         existingAdmin.email.toLowerCase() !== normalizedEmail
       ) {
         throw new Error(
-          "Akun admin sudah ada dengan email berbeda. Gunakan email akun tersebut untuk memperbarui kredensial.",
+          "An admin account already exists with a different email. Use that account's email to update its credentials.",
         );
       }
 
@@ -985,7 +989,7 @@ class SqliteDatabase {
           existing.requestHash !== order.requestHash
           || existing.accessTokenHash !== order.accessTokenHash
         ) {
-          const error = new Error("Kunci permintaan sudah digunakan untuk data pesanan yang berbeda.");
+          const error = new Error("This request key has already been used for a different order.");
           error.code = "IDEMPOTENCY_CONFLICT";
           throw error;
         }
@@ -995,7 +999,7 @@ class SqliteDatabase {
 
       const product = this.getPurchasableProduct(order.productId);
       if (!product) {
-        const error = new Error("Produk tidak aktif untuk pembelian langsung atau stok tidak mencukupi.");
+        const error = new Error("The product is not enabled for direct purchase or there is insufficient stock.");
         error.code = "PRODUCT_UNAVAILABLE";
         throw error;
       }
@@ -1046,7 +1050,7 @@ class SqliteDatabase {
       this.db.prepare(`
         INSERT INTO purchase_order_events (
           id, purchase_order_id, event_type, label, actor_type, actor_id
-        ) VALUES (?, ?, 'order_created', 'Pesanan dibuat', ?, ?)
+        ) VALUES (?, ?, 'order_created', 'Order created', ?, ?)
       `).run(randomUUID(), id, order.customerId ? "customer" : "system", order.customerId || null);
       this.db.exec("COMMIT");
       return { order: this.getPurchaseOrderById(id), duplicate: false };
@@ -1071,9 +1075,87 @@ class SqliteDatabase {
         payment_status AS paymentStatus, approval_status AS approvalStatus,
         approval_rejection_reason AS approvalRejectionReason,
         approved_at AS approvedAt, description_snapshot AS descriptionSnapshot,
-        order_status AS orderStatus,
+        CASE
+          WHEN order_status = 'ready_to_ship'
+            AND EXISTS (SELECT 1 FROM purchase_order_events WHERE purchase_order_id = purchase_orders.id AND event_type = 'order_arrived_destination')
+          THEN 'delivered'
+          ELSE order_status
+        END AS orderStatus,
+        admin_hidden_at AS adminHiddenAt,
         payment_proof AS paymentProof, created_at AS createdAt,
-        updated_at AS updatedAt
+        updated_at AS updatedAt,
+        (
+          SELECT created_at FROM purchase_order_events
+          WHERE purchase_order_id = purchase_orders.id
+            AND event_type = 'customer_confirmed_received'
+            AND julianday(created_at) >= julianday(CASE
+              WHEN purchase_orders.shipping_method = 'delivery' THEN (
+                SELECT arrived.created_at FROM purchase_order_events arrived
+                WHERE arrived.purchase_order_id = purchase_orders.id
+                  AND arrived.event_type = 'order_arrived_destination'
+                ORDER BY arrived.created_at DESC, arrived.rowid DESC LIMIT 1
+              )
+              WHEN purchase_orders.order_status = 'ready_for_pickup' THEN (
+                SELECT ready.created_at FROM purchase_order_events ready
+                WHERE ready.purchase_order_id = purchase_orders.id
+                  AND ready.event_type = 'order_ready_for_pickup'
+                ORDER BY ready.created_at DESC, ready.rowid DESC LIMIT 1
+              )
+              ELSE NULL
+            END)
+          ORDER BY created_at DESC, rowid DESC
+          LIMIT 1
+        ) AS customerReceivedAt,
+        (
+          SELECT created_at FROM purchase_order_events
+          WHERE purchase_order_id = purchase_orders.id
+            AND event_type = 'order_arrived_destination'
+          ORDER BY created_at DESC, rowid DESC
+          LIMIT 1
+        ) AS deliveredAt,
+        (
+          SELECT created_at FROM purchase_order_events
+          WHERE purchase_order_id = purchase_orders.id
+            AND event_type = CASE
+              WHEN purchase_orders.shipping_method = 'delivery' THEN 'order_arrived_destination'
+              WHEN purchase_orders.order_status = 'ready_for_pickup' THEN 'order_ready_for_pickup'
+              ELSE ''
+            END
+          ORDER BY created_at DESC, rowid DESC
+          LIMIT 1
+        ) AS readyAt,
+        CASE WHEN order_status IN ('ready_for_pickup', 'ready_to_ship') AND (
+          EXISTS (
+            SELECT 1 FROM purchase_order_events
+            WHERE purchase_order_id = purchase_orders.id
+              AND event_type = 'customer_confirmed_received'
+              AND julianday(created_at) >= julianday(CASE
+                WHEN purchase_orders.shipping_method = 'delivery' THEN (
+                  SELECT arrived.created_at FROM purchase_order_events arrived
+                  WHERE arrived.purchase_order_id = purchase_orders.id
+                    AND arrived.event_type = 'order_arrived_destination'
+                  ORDER BY arrived.created_at DESC, arrived.rowid DESC LIMIT 1
+                )
+                WHEN purchase_orders.order_status = 'ready_for_pickup' THEN (
+                  SELECT ready.created_at FROM purchase_order_events ready
+                  WHERE ready.purchase_order_id = purchase_orders.id
+                    AND ready.event_type = 'order_ready_for_pickup'
+                  ORDER BY ready.created_at DESC, ready.rowid DESC LIMIT 1
+                )
+                ELSE NULL
+              END)
+          )
+          OR EXISTS (
+            SELECT 1 FROM purchase_order_events
+            WHERE purchase_order_id = purchase_orders.id
+              AND event_type = CASE
+                WHEN purchase_orders.shipping_method = 'delivery' THEN 'order_arrived_destination'
+                WHEN purchase_orders.order_status = 'ready_for_pickup' THEN 'order_ready_for_pickup'
+                ELSE ''
+              END
+              AND julianday('now') >= julianday(created_at) + 3
+          )
+        ) THEN 1 ELSE 0 END AS canAdminComplete
       FROM purchase_orders WHERE id = ?
     `).get(id);
   }
@@ -1088,6 +1170,8 @@ class SqliteDatabase {
     const actual = Buffer.from(createHash("sha256").update(accessToken).digest("hex"), "hex");
     if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null;
     const { paymentProof, customerId, ...publicOrder } = order;
+    publicOrder.cancelledByAdmin = Boolean(order.adminHiddenAt && order.orderStatus === "cancelled");
+    delete publicOrder.adminHiddenAt;
     return {
       ...publicOrder,
       isClaimed: Boolean(customerId),
@@ -1130,7 +1214,8 @@ class SqliteDatabase {
       paid: "payment_status = 'paid'",
       expired: "payment_status = 'expired'",
       processing: "payment_status = 'paid' AND order_status = 'processing'",
-      ready: "payment_status = 'paid' AND order_status IN ('ready_for_pickup', 'ready_to_ship')",
+      ready: "payment_status = 'paid' AND (order_status = 'ready_for_pickup' OR (order_status = 'ready_to_ship' AND NOT EXISTS (SELECT 1 FROM purchase_order_events WHERE purchase_order_id = purchase_orders.id AND event_type = 'order_arrived_destination')))",
+      delivered: "payment_status = 'paid' AND order_status = 'ready_to_ship' AND EXISTS (SELECT 1 FROM purchase_order_events WHERE purchase_order_id = purchase_orders.id AND event_type = 'order_arrived_destination')",
       completed: "payment_status = 'paid' AND order_status = 'completed'",
       cancelled: "order_status = 'cancelled'",
     };
@@ -1145,8 +1230,40 @@ class SqliteDatabase {
         product_name AS productName, basis, image_snapshot AS imageSnapshot,
         price_snapshot AS price, total_amount AS totalAmount,
         payment_method AS paymentMethod, payment_status AS paymentStatus,
-        approval_status AS approvalStatus, order_status AS orderStatus,
+        approval_status AS approvalStatus,
         CASE
+          WHEN order_status = 'ready_to_ship'
+            AND EXISTS (SELECT 1 FROM purchase_order_events WHERE purchase_order_id = purchase_orders.id AND event_type = 'order_arrived_destination')
+          THEN 'delivered'
+          ELSE order_status
+        END AS orderStatus,
+        (admin_hidden_at IS NOT NULL AND order_status = 'cancelled') AS cancelledByAdmin,
+        (
+          SELECT created_at FROM purchase_order_events
+          WHERE purchase_order_id = purchase_orders.id
+            AND event_type = 'customer_confirmed_received'
+            AND julianday(created_at) >= julianday(CASE
+              WHEN purchase_orders.shipping_method = 'delivery' THEN (
+                SELECT arrived.created_at FROM purchase_order_events arrived
+                WHERE arrived.purchase_order_id = purchase_orders.id
+                  AND arrived.event_type = 'order_arrived_destination'
+                ORDER BY arrived.created_at DESC, arrived.rowid DESC LIMIT 1
+              )
+              WHEN purchase_orders.order_status = 'ready_for_pickup' THEN (
+                SELECT ready.created_at FROM purchase_order_events ready
+                WHERE ready.purchase_order_id = purchase_orders.id
+                  AND ready.event_type = 'order_ready_for_pickup'
+                ORDER BY ready.created_at DESC, ready.rowid DESC LIMIT 1
+              )
+              ELSE NULL
+            END)
+          ORDER BY created_at DESC, rowid DESC
+          LIMIT 1
+        ) AS customerReceivedAt,
+        CASE
+          WHEN admin_hidden_at IS NOT NULL AND order_status = 'cancelled' THEN 'cancelled'
+          WHEN approval_status = 'rejected' THEN 'rejected'
+          WHEN order_status = 'cancelled' THEN 'cancelled'
           WHEN approval_status = 'pending_approval' AND order_status = 'awaiting_shipping_quote' THEN 'waiting_shipping_quote'
           WHEN approval_status = 'pending_approval' THEN 'pending_approval'
           WHEN approval_status = 'rejected' THEN 'rejected'
@@ -1154,9 +1271,10 @@ class SqliteDatabase {
           WHEN payment_status = 'rejected' THEN 'payment_rejected'
           WHEN payment_status = 'expired' THEN 'expired'
           WHEN payment_status = 'paid' AND order_status = 'processing' THEN 'processing'
+          WHEN payment_status = 'paid' AND order_status = 'ready_to_ship'
+            AND EXISTS (SELECT 1 FROM purchase_order_events WHERE purchase_order_id = purchase_orders.id AND event_type = 'order_arrived_destination') THEN 'delivered'
           WHEN payment_status = 'paid' AND order_status IN ('ready_for_pickup', 'ready_to_ship') THEN 'ready'
           WHEN payment_status = 'paid' AND order_status = 'completed' THEN 'completed'
-          WHEN order_status = 'cancelled' THEN 'cancelled'
           ELSE 'pending_payment'
         END AS status,
         created_at AS createdAt
@@ -1175,6 +1293,8 @@ class SqliteDatabase {
     const order = this.getPurchaseOrderById(id);
     if (!order || order.customerId !== customerId) return null;
     const { paymentProof, ...safeOrder } = order;
+    safeOrder.cancelledByAdmin = Boolean(order.adminHiddenAt && order.orderStatus === "cancelled");
+    delete safeOrder.adminHiddenAt;
     delete safeOrder.customerId;
     return {
       ...safeOrder,
@@ -1223,7 +1343,7 @@ class SqliteDatabase {
       WHERE id = ? AND customer_id IS NULL
     `).run(customerId, id);
     if (!result.changes) return null;
-    this.recordPurchaseEvent(id, "guest_order_claimed", "Pesanan tamu ditautkan ke akun", null, "customer", customerId);
+    this.recordPurchaseEvent(id, "guest_order_claimed", "Guest order linked to account", null, "customer", customerId);
     return this.getCustomerPurchaseOrderById(customerId, id);
   }
 
@@ -1235,8 +1355,43 @@ class SqliteDatabase {
     `).run(randomUUID(), orderId, eventType, label, details, actorType, actorId);
   }
 
+  confirmCustomerPurchaseReceived(customerId, id) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const order = this.getPurchaseOrderById(id);
+      if (
+        !order
+        || order.customerId !== customerId
+        || order.paymentStatus !== "paid"
+        || !(
+          (order.shippingMethod === "delivery" && order.orderStatus === "delivered")
+          || (order.shippingMethod === "pickup" && order.orderStatus === "ready_for_pickup")
+        )
+        || order.adminHiddenAt
+      ) {
+        this.db.exec("ROLLBACK");
+        return null;
+      }
+      if (!order.customerReceivedAt) {
+        this.recordPurchaseEvent(
+          id,
+          "customer_confirmed_received",
+          "Customer confirmed motorcycle received",
+          null,
+          "customer",
+          customerId,
+        );
+      }
+      this.db.exec("COMMIT");
+      return this.getCustomerPurchaseOrderById(customerId, id);
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   getPurchaseOrders({ search = "", status = "", page = 1, pageSize = 10 }) {
-    const conditions = [];
+    const conditions = ["admin_hidden_at IS NULL"];
     const params = [];
     if (search) {
       conditions.push("(order_number LIKE ? OR customer_name LIKE ? OR phone LIKE ? OR product_name LIKE ?)");
@@ -1251,7 +1406,8 @@ class SqliteDatabase {
       payment_rejected: "approval_status = 'approved' AND payment_status = 'rejected'",
       paid: "approval_status = 'approved' AND payment_status = 'paid'",
       processing: "order_status = 'processing'",
-      ready: "order_status IN ('ready_for_pickup', 'ready_to_ship')",
+      ready: "order_status = 'ready_for_pickup' OR (order_status = 'ready_to_ship' AND NOT EXISTS (SELECT 1 FROM purchase_order_events WHERE purchase_order_id = purchase_orders.id AND event_type = 'order_arrived_destination'))",
+      delivered: "order_status = 'ready_to_ship' AND EXISTS (SELECT 1 FROM purchase_order_events WHERE purchase_order_id = purchase_orders.id AND event_type = 'order_arrived_destination')",
       completed: "order_status = 'completed'",
       rejected: "approval_status = 'rejected' OR order_status = 'cancelled'",
     };
@@ -1268,17 +1424,24 @@ class SqliteDatabase {
         price_snapshot AS price, payment_method AS paymentMethod,
         payment_status AS paymentStatus, approval_status AS approvalStatus,
         approval_rejection_reason AS approvalRejectionReason,
-        order_status AS orderStatus,
         CASE
+          WHEN order_status = 'ready_to_ship'
+            AND EXISTS (SELECT 1 FROM purchase_order_events WHERE purchase_order_id = purchase_orders.id AND event_type = 'order_arrived_destination')
+          THEN 'delivered'
+          ELSE order_status
+        END AS orderStatus,
+        CASE
+          WHEN order_status = 'cancelled' THEN 'cancelled'
           WHEN approval_status = 'pending_approval' AND order_status = 'awaiting_shipping_quote' THEN 'waiting_shipping_quote'
           WHEN approval_status = 'pending_approval' THEN 'pending_approval'
           WHEN approval_status = 'rejected' THEN 'rejected'
           WHEN payment_status = 'waiting_verification' THEN 'waiting_verification'
           WHEN payment_status = 'rejected' THEN 'payment_rejected'
           WHEN payment_status = 'paid' AND order_status = 'processing' THEN 'processing'
+          WHEN payment_status = 'paid' AND order_status = 'ready_to_ship'
+            AND EXISTS (SELECT 1 FROM purchase_order_events WHERE purchase_order_id = purchase_orders.id AND event_type = 'order_arrived_destination') THEN 'delivered'
           WHEN payment_status = 'paid' AND order_status IN ('ready_for_pickup', 'ready_to_ship') THEN 'ready'
           WHEN payment_status = 'paid' AND order_status = 'completed' THEN 'completed'
-          WHEN order_status = 'cancelled' THEN 'rejected'
           ELSE 'pending_payment'
         END AS status,
         created_at AS createdAt
@@ -1289,6 +1452,67 @@ class SqliteDatabase {
       data,
       pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     };
+  }
+
+  cancelAndHidePurchaseOrder(id, adminId) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const result = this.db.prepare(`
+        UPDATE purchase_orders SET order_status = 'cancelled',
+          admin_hidden_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND admin_hidden_at IS NULL
+      `).run(id);
+      if (!result.changes) {
+        this.db.exec("ROLLBACK");
+        return null;
+      }
+      this.recordPurchaseEvent(
+        id,
+        "order_cancelled_by_admin",
+        "Order cancelled by Ruka",
+        null,
+        "admin",
+        adminId,
+      );
+      this.db.exec("COMMIT");
+      return this.getPurchaseOrderById(id);
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  cancelAndHideAllPurchaseOrders(adminId) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const orders = this.db.prepare(`
+        SELECT id FROM purchase_orders WHERE admin_hidden_at IS NULL
+      `).all();
+      if (!orders.length) {
+        this.db.exec("COMMIT");
+        return 0;
+      }
+      this.db.prepare(`
+        UPDATE purchase_orders SET order_status = 'cancelled',
+          admin_hidden_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE admin_hidden_at IS NULL
+      `).run();
+      for (const { id } of orders) {
+        this.recordPurchaseEvent(
+          id,
+          "order_cancelled_by_admin",
+          "Order cancelled by Ruka",
+          null,
+          "admin",
+          adminId,
+        );
+      }
+      this.db.exec("COMMIT");
+      return orders.length;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   verifyPurchaseAccess(id, accessToken) {
@@ -1315,7 +1539,7 @@ class SqliteDatabase {
         AND payment_status = 'pending_payment'
     `).run(shippingCost, totalAmount, id);
     if (result.changes) {
-      this.recordPurchaseEvent(id, "shipping_quote_set", "Biaya pengiriman dikonfirmasi", String(shippingCost), "admin");
+      this.recordPurchaseEvent(id, "shipping_quote_set", "Shipping cost confirmed", String(shippingCost), "admin");
     }
     return result.changes > 0 ? this.getPurchaseOrderById(id) : null;
   }
@@ -1324,8 +1548,8 @@ class SqliteDatabase {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const order = this.getPurchaseOrderById(id);
-      if (!order || order.approvalStatus !== "pending_approval") {
-        const error = new Error("Pesanan tidak lagi menunggu persetujuan.");
+      if (!order || order.approvalStatus !== "pending_approval" || order.orderStatus === "cancelled") {
+        const error = new Error("The order is no longer awaiting approval.");
         error.code = "ORDER_NOT_APPROVABLE";
         throw error;
       }
@@ -1361,12 +1585,12 @@ class SqliteDatabase {
           )
         );
       if (!isAvailable) {
-        const error = new Error("Build, harga, spesifikasi, atau stok berubah dan tidak lagi cocok dengan snapshot pesanan.");
+        const error = new Error("The build, price, specifications, or stock have changed and no longer match the order snapshot.");
         error.code = "PRODUCT_SNAPSHOT_MISMATCH";
         throw error;
       }
       if (order.shippingMethod === "delivery" && order.shippingCost == null) {
-        const error = new Error("Konfirmasi ongkir sebelum menyetujui pesanan pengiriman.");
+        const error = new Error("Confirm the shipping cost before approving a delivery order.");
         error.code = "SHIPPING_QUOTE_REQUIRED";
         throw error;
       }
@@ -1374,10 +1598,10 @@ class SqliteDatabase {
         UPDATE purchase_orders SET approval_status = 'approved',
           approved_at = CURRENT_TIMESTAMP, order_status = 'awaiting_payment',
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND approval_status = 'pending_approval'
+        WHERE id = ? AND approval_status = 'pending_approval' AND order_status != 'cancelled'
       `).run(id);
       if (!result.changes) {
-        const error = new Error("Pesanan tidak lagi menunggu persetujuan.");
+        const error = new Error("The order is no longer awaiting approval.");
         error.code = "ORDER_NOT_APPROVABLE";
         throw error;
       }
@@ -1403,7 +1627,7 @@ class SqliteDatabase {
         this.db.exec("ROLLBACK");
         return null;
       }
-      this.recordPurchaseEvent(id, "approval_rejected", "Pesanan tidak disetujui", reason, "admin");
+      this.recordPurchaseEvent(id, "approval_rejected", "Order not approved", reason, "admin");
       this.db.exec("COMMIT");
       return this.getPurchaseOrderById(id);
     } catch (error) {
@@ -1422,7 +1646,7 @@ class SqliteDatabase {
         || !["pending_payment", "waiting_verification", "rejected"].includes(order.paymentStatus)
         || order.orderStatus !== "awaiting_payment"
       ) {
-        const error = new Error("Pesanan belum dapat menerima bukti pembayaran.");
+        const error = new Error("The order cannot accept payment proof yet.");
         error.code = "ORDER_NOT_PAYABLE";
         throw error;
       }
@@ -1440,7 +1664,7 @@ class SqliteDatabase {
       this.recordPurchaseEvent(
         id,
         isReupload ? "payment_proof_replaced" : "payment_proof_submitted",
-        isReupload ? "Bukti pembayaran diperbarui" : "Bukti pembayaran dikirim",
+        isReupload ? "Payment proof updated" : "Payment proof submitted",
         null,
         customerId ? "customer" : "system",
         customerId,
@@ -1457,8 +1681,13 @@ class SqliteDatabase {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const order = this.getPurchaseOrderById(id);
-      if (!order || order.paymentStatus !== "waiting_verification" || !order.paymentProof) {
-        const error = new Error("Pesanan tidak memiliki bukti yang menunggu verifikasi.");
+      if (
+        !order
+        || order.orderStatus === "cancelled"
+        || order.paymentStatus !== "waiting_verification"
+        || !order.paymentProof
+      ) {
+        const error = new Error("The order has no payment proof awaiting verification.");
         error.code = "PAYMENT_NOT_REVIEWABLE";
         throw error;
       }
@@ -1472,7 +1701,7 @@ class SqliteDatabase {
             AND payment_status IN ('pending_payment', 'waiting_verification')
         `).get(order.productId, id).count;
         if (!product || product.quantity <= reservedElsewhere) {
-          const error = new Error("Stok ready stock tidak lagi mencukupi untuk pesanan ini.");
+          const error = new Error("There is no longer enough ready stock for this order.");
           error.code = "STOCK_UNAVAILABLE";
           throw error;
         }
@@ -1489,7 +1718,7 @@ class SqliteDatabase {
       this.recordPurchaseEvent(
         id,
         decision === "paid" ? "payment_confirmed" : "payment_rejected",
-        decision === "paid" ? "Pembayaran dikonfirmasi" : "Bukti pembayaran ditolak",
+        decision === "paid" ? "Payment confirmed" : "Payment proof rejected",
         null,
         "admin",
       );
@@ -1502,36 +1731,79 @@ class SqliteDatabase {
   }
 
   updatePurchaseOrderStatus(id, orderStatus) {
-    const current = this.getPurchaseOrderById(id);
-    const nextStatuses = {
-      processing: current?.shippingMethod === "pickup"
-        ? ["ready_for_pickup", "cancelled"]
-        : ["ready_to_ship", "cancelled"],
-      ready_for_pickup: ["completed"],
-      ready_to_ship: ["completed"],
-    };
-    if (
-      !current
-      || current.paymentStatus !== "paid"
-      || !nextStatuses[current.orderStatus]?.includes(orderStatus)
-    ) {
-      return null;
-    }
-    const result = this.db.prepare(`
-      UPDATE purchase_orders SET order_status = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND payment_status = 'paid'
-    `).run(orderStatus, id);
-    if (result.changes) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const current = this.getPurchaseOrderById(id);
+      if (
+        orderStatus === "delivered"
+        && current
+        && current.paymentStatus === "paid"
+        && current.shippingMethod === "delivery"
+        && current.orderStatus === "ready_to_ship"
+        && !current.adminHiddenAt
+      ) {
+        this.db.prepare(`
+          UPDATE purchase_orders SET updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND order_status = 'ready_to_ship' AND admin_hidden_at IS NULL
+        `).run(id);
+        this.recordPurchaseEvent(
+          id,
+          "order_arrived_destination",
+          "Order arrived at destination",
+          null,
+          "admin",
+        );
+        this.db.exec("COMMIT");
+        return this.getPurchaseOrderById(id);
+      }
+      const nextStatuses = {
+        processing: current?.shippingMethod === "pickup"
+          ? ["ready_for_pickup", "cancelled"]
+          : ["ready_to_ship", "cancelled"],
+        ready_for_pickup: ["completed"],
+        ready_to_ship: ["completed"],
+        delivered: ["completed"],
+      };
+      if (
+        !current
+        || current.adminHiddenAt
+        || current.paymentStatus !== "paid"
+        || !nextStatuses[current.orderStatus]?.includes(orderStatus)
+        || (orderStatus === "completed" && !current.canAdminComplete)
+      ) {
+        this.db.exec("ROLLBACK");
+        return null;
+      }
+      const result = this.db.prepare(`
+        UPDATE purchase_orders
+        SET order_status = ?,
+          admin_hidden_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE admin_hidden_at END,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND payment_status = 'paid' AND order_status = ? AND admin_hidden_at IS NULL
+      `).run(
+        orderStatus,
+        orderStatus,
+        id,
+        current.orderStatus === "delivered" ? "ready_to_ship" : current.orderStatus,
+      );
+      if (!result.changes) {
+        this.db.exec("ROLLBACK");
+        return null;
+      }
       const eventLabels = {
-        processing: "Pesanan mulai diproses",
-        ready_for_pickup: "Pesanan siap diambil",
-        ready_to_ship: "Pesanan siap dikirim",
-        completed: "Pesanan selesai",
-        cancelled: "Pesanan dibatalkan",
+        processing: "Order processing started",
+        ready_for_pickup: "Order ready for pickup",
+        ready_to_ship: "Order ready to ship",
+        completed: "Order completed",
+        cancelled: "Order cancelled",
       };
       this.recordPurchaseEvent(id, `order_${orderStatus}`, eventLabels[orderStatus], null, "admin");
+      this.db.exec("COMMIT");
+      return this.getPurchaseOrderById(id);
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
     }
-    return result.changes ? this.getPurchaseOrderById(id) : null;
   }
 
   createConsultation(consultation) {
@@ -1684,6 +1956,10 @@ class SqliteDatabase {
     const statusOptions = this.db.prepare(
       "SELECT DISTINCT status FROM orders WHERE status IS NOT NULL AND status != '' ORDER BY status",
     ).all().map(({ status }) => status);
+    if (!statusOptions.includes("completed")) {
+      statusOptions.push("completed");
+      statusOptions.sort();
+    }
 
     return {
       ...consultation,
@@ -1714,7 +1990,7 @@ class SqliteDatabase {
         images = parsed.filter((image) => typeof image === "string" && image);
       }
     } catch (error) {
-      console.error("Referensi foto konsultasi bukan JSON yang valid.", error);
+      console.error("Consultation photo references are not valid JSON.", error);
     }
 
     if (!images.length && typeof legacyImage === "string" && legacyImage) {
@@ -1727,6 +2003,7 @@ class SqliteDatabase {
     const allowedStatuses = this.db.prepare(
       "SELECT DISTINCT status FROM orders WHERE status IS NOT NULL AND status != ''",
     ).all().map(({ status: existingStatus }) => existingStatus);
+    if (!allowedStatuses.includes("completed")) allowedStatuses.push("completed");
     if (!allowedStatuses.includes(status)) {
       return { invalidStatus: true, allowedStatuses };
     }
@@ -1736,6 +2013,13 @@ class SqliteDatabase {
     ).run(status, id);
     if (!result.changes) return null;
     return this.getConsultationById(id);
+  }
+
+  deleteCompletedConsultation(id) {
+    const result = this.db.prepare(
+      "DELETE FROM orders WHERE id = ? AND LOWER(TRIM(status)) = 'completed'",
+    ).run(id);
+    return result.changes > 0;
   }
 
   getDashboardSummary() {
@@ -1763,7 +2047,7 @@ class SqliteDatabase {
       LIMIT 5
     `).all();
     const purchaseOrders = this.db.prepare(
-      "SELECT COUNT(*) AS count FROM purchase_orders",
+      "SELECT COUNT(*) AS count FROM purchase_orders WHERE admin_hidden_at IS NULL",
     ).get().count;
     const latestPurchaseOrders = this.db.prepare(`
       SELECT id, order_number AS orderNumber, customer_name AS customerName,
@@ -1772,6 +2056,8 @@ class SqliteDatabase {
         approval_rejection_reason AS approvalRejectionReason,
         order_status AS orderStatus,
         CASE
+          WHEN approval_status = 'rejected' THEN 'rejected'
+          WHEN order_status = 'cancelled' THEN 'cancelled'
           WHEN approval_status = 'pending_approval' AND order_status = 'awaiting_shipping_quote' THEN 'waiting_shipping_quote'
           WHEN approval_status = 'pending_approval' THEN 'pending_approval'
           WHEN approval_status = 'rejected' THEN 'rejected'
@@ -1780,11 +2066,11 @@ class SqliteDatabase {
           WHEN payment_status = 'paid' AND order_status = 'processing' THEN 'processing'
           WHEN payment_status = 'paid' AND order_status IN ('ready_for_pickup', 'ready_to_ship') THEN 'ready'
           WHEN payment_status = 'paid' AND order_status = 'completed' THEN 'completed'
-          WHEN order_status = 'cancelled' THEN 'rejected'
           ELSE 'pending_payment'
         END AS status,
         created_at AS createdAt
       FROM purchase_orders
+      WHERE admin_hidden_at IS NULL
       ORDER BY created_at DESC, id DESC
       LIMIT 5
     `).all();

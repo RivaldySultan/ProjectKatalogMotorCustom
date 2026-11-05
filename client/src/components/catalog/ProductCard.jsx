@@ -8,6 +8,7 @@ import {
 } from '../../lib/products';
 import Icon from '../ui/Icon';
 import Link from '../ui/Link';
+import { getWhatsAppLink } from '../../lib/whatsapp';
 import './ProductCard.css';
 
 export default function ProductCard({ product, index = 0 }) {
@@ -17,11 +18,17 @@ export default function ProductCard({ product, index = 0 }) {
   const buildCode = getProductBuildCode(product);
   const buildName = getProductBuildName(product);
   const basis = getProductBasis(product);
+  const whatsappOrderLink = getWhatsAppLink([
+    'Hello Ruka Motorworks, I am interested in ordering this build via WhatsApp.',
+    `Build: ${buildName || product.name}`,
+    basis ? `Motorcycle basis: ${basis}` : '',
+    `Price: ${formatRupiah(product.price)}`,
+  ].filter(Boolean).join('\n'));
 
   return (
     <article className="rm-product-card">
       <Link
-        aria-label={`Lihat detail ${product.name}`}
+        aria-label={`View ${product.name} details`}
         className="rm-product-card__media"
         to={detailPath}
       >
@@ -35,7 +42,7 @@ export default function ProductCard({ product, index = 0 }) {
           />
         ) : (
           <span aria-hidden="true" className="rm-product-card__image-placeholder">
-            Foto build belum tersedia
+            Build photo unavailable
           </span>
         )}
         <span className="rm-product-card__style">
@@ -56,7 +63,7 @@ export default function ProductCard({ product, index = 0 }) {
         {basis ? <p className="rm-product-card__basis">{basis}</p> : null}
 
         <div className="rm-product-card__price-row">
-          <span className="rm-meta">Harga build</span>
+          <span className="rm-meta">Build price</span>
           <span className="rm-product-card__price">
             {formatRupiah(product.price)}
           </span>
@@ -64,14 +71,25 @@ export default function ProductCard({ product, index = 0 }) {
 
         <div className="rm-product-card__actions">
           <Link className="rm-product-card__action" to={detailPath}>
-            <span>Lihat Detail</span>
+            <span>View Details</span>
             <Icon name="arrow-up-right" size={18} />
           </Link>
           {product.canPurchase === 1 ? (
-            <Link className="rm-product-card__action rm-product-card__action--purchase" to={`/checkout/${encodeURIComponent(product.id)}`}>
-              <span>Pesan Langsung</span>
-              <Icon name="arrow-up-right" size={18} />
-            </Link>
+            <>
+              <Link className="rm-product-card__action rm-product-card__action--purchase" to={`/checkout/${encodeURIComponent(product.id)}`}>
+                <span>Order via Web</span>
+                <Icon name="arrow-up-right" size={18} />
+              </Link>
+              <a
+                className="rm-product-card__action rm-product-card__action--whatsapp"
+                href={whatsappOrderLink}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <span>Order via WhatsApp</span>
+                <Icon name="arrow-up-right" size={18} />
+              </a>
+            </>
           ) : null}
         </div>
       </div>

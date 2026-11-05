@@ -13,8 +13,8 @@ const PAGE_SIZE = 10;
 function formatDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
-    ? 'Tanggal tidak tersedia'
-    : new Intl.DateTimeFormat('id-ID', {
+    ? 'Date unavailable'
+    : new Intl.DateTimeFormat('en-US', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -33,16 +33,19 @@ function getAdminError(result, fallback) {
 }
 
 const ORDER_STATUS_LABELS = {
-  pending_approval: 'Menunggu persetujuan',
-  waiting_shipping_quote: 'Menunggu ongkir',
-  pending_payment: 'Menunggu pembayaran',
-  waiting_verification: 'Menunggu verifikasi',
-  payment_rejected: 'Bukti ditolak',
-  paid: 'Lunas',
-  processing: 'Sedang dikerjakan',
-  ready: 'Siap diambil / dikirim',
-  completed: 'Selesai',
-  rejected: 'Ditolak',
+  pending_approval: 'Awaiting approval',
+  waiting_shipping_quote: 'Awaiting shipping quote',
+  pending_payment: 'Awaiting payment',
+  waiting_verification: 'Awaiting verification',
+  payment_rejected: 'Payment proof rejected',
+  paid: 'Paid',
+  processing: 'In progress',
+  ready: 'Order delivery / ready for pickup',
+  ready_for_pickup: 'Ready for pickup',
+  ready_to_ship: 'Order delivery',
+  delivered: 'Order arrived at destination',
+  completed: 'Completed',
+  rejected: 'Rejected',
 };
 
 function PurchaseList() {
@@ -53,8 +56,29 @@ function PurchaseList() {
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingOrderId, setDeletingOrderId] = useState('');
 
-  usePageTitle('Pesanan Pembelian — RUKA Motorworks');
+  usePageTitle('Purchase Orders — RUKA Motorworks');
+
+  const deleteOrder = async (order) => {
+    if (!window.confirm(`Cancel order ${order.orderNumber} and remove it from Purchase Orders? The customer will see it as cancelled.`)) return;
+    setDeletingOrderId(order.id);
+    setError('');
+    const result = await adminRequest(`/api/purchases/admin/${encodeURIComponent(order.id)}`, {
+      method: 'DELETE',
+    });
+    setDeletingOrderId('');
+    if (!result.ok) {
+      setError(getAdminError(result, 'The order could not be cancelled.'));
+      return;
+    }
+    setOrders((current) => current.filter((item) => item.id !== order.id));
+    setPagination((current) => ({ ...current, total: Math.max(0, current.total - 1) }));
+    if (orders.length === 1 && page > 1) {
+      setLoading(true);
+      setPage((current) => current - 1);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -68,7 +92,7 @@ function PurchaseList() {
       .then((result) => {
         if (!active) return;
         if (!result.ok) {
-          setError(getAdminError(result, 'Daftar pesanan pembelian belum dapat dimuat.'));
+          setError(getAdminError(result, 'Purchase orders could not be loaded.'));
         } else {
           setError('');
           setOrders(result.data?.data || []);
@@ -77,9 +101,9 @@ function PurchaseList() {
         setLoading(false);
       })
       .catch((requestError) => {
-        console.error('Gagal memuat pesanan pembelian:', requestError);
+        console.error('Failed to load purchase orders:', requestError);
         if (active) {
-          setError('Daftar pesanan pembelian belum dapat dimuat.');
+          setError('Purchase orders could not be loaded.');
           setLoading(false);
         }
       });
@@ -92,58 +116,58 @@ function PurchaseList() {
     <AdminLayout active="purchases">
       <section aria-labelledby="rm-admin-purchases-title" className="rm-admin__intro">
         <div>
-          <p className="rm-admin-meta">RUANG KERJA / PEMBELIAN LANGSUNG</p>
-          <h1 id="rm-admin-purchases-title">PESANAN PEMBELIAN</h1>
-          <p className="rm-admin__welcome">Tinjau pembayaran dan progres pesanan build yang dibeli langsung.</p>
+          <p className="rm-admin-meta">WORKSPACE / DIRECT PURCHASES</p>
+          <h1 id="rm-admin-purchases-title">PURCHASE ORDERS</h1>
+          <p className="rm-admin__welcome">Review payments and progress for directly purchased builds.</p>
         </div>
         <Link className="rm-admin__public-link" to="/admin/dashboard">
-          Kembali ke Dashboard
+          Back to Dashboard
           <Icon name="arrow-up-right" size={16} />
         </Link>
       </section>
 
-      <section aria-label="Filter pesanan pembelian" className="rm-admin-purchases__filters">
+      <section aria-label="Filter purchase orders" className="rm-admin-purchases__filters">
         <label>
-          <span>Cari pesanan atau pelanggan</span>
-          <input onChange={(event) => { setLoading(true); setSearch(event.target.value); setPage(1); }} placeholder="Nomor, nama, telepon, build" type="search" value={search} />
+          <span>Search orders or customers</span>
+          <input onChange={(event) => { setLoading(true); setSearch(event.target.value); setPage(1); }} placeholder="Number, name, phone, build" type="search" value={search} />
         </label>
         <label>
-          <span>Status pesanan</span>
+          <span>Order status</span>
           <select onChange={(event) => { setLoading(true); setStatus(event.target.value); setPage(1); }} value={status}>
-            <option value="">Semua status</option>
-            <option value="pending_approval">Menunggu persetujuan</option>
-            <option value="waiting_shipping_quote">Menunggu konfirmasi ongkir</option>
-            <option value="pending_payment">Menunggu pembayaran</option>
-            <option value="waiting_verification">Menunggu verifikasi</option>
-            <option value="payment_rejected">Bukti pembayaran ditolak</option>
-            <option value="paid">Lunas</option>
-            <option value="processing">Sedang dikerjakan</option>
-            <option value="ready">Siap diambil / dikirim</option>
-            <option value="completed">Selesai</option>
-            <option value="rejected">Pesanan ditolak</option>
+            <option value="">All statuses</option>
+            <option value="pending_approval">Awaiting approval</option>
+            <option value="waiting_shipping_quote">Awaiting shipping quote</option>
+            <option value="pending_payment">Awaiting payment</option>
+            <option value="waiting_verification">Awaiting verification</option>
+            <option value="payment_rejected">Payment proof rejected</option>
+            <option value="paid">Paid</option>
+            <option value="processing">In progress</option>
+            <option value="ready">Order delivery / ready for pickup</option>
+            <option value="delivered">Order arrived at destination</option>
+            <option value="rejected">Order rejected</option>
           </select>
         </label>
       </section>
 
       {error ? <p className="rm-admin-purchases__error" role="alert">{error}</p> : null}
-      <section aria-label="Daftar pesanan pembelian" className="rm-admin-panel rm-admin-purchases">
+      <section aria-label="Purchase order list" className="rm-admin-panel rm-admin-purchases">
         <div className="rm-admin-purchases__summary">
-          <p className="rm-admin-meta">DATA PEMBELIAN / TRANSFER MANUAL</p>
-          <p>{pagination.total} pesanan tercatat</p>
+          <p className="rm-admin-meta">PURCHASE DATA / MANUAL TRANSFER</p>
+          <p>{pagination.total} recorded orders</p>
         </div>
         {loading ? (
-          <p aria-live="polite" className="rm-admin-purchases__state">Memuat pesanan pembelian...</p>
+          <p aria-live="polite" className="rm-admin-purchases__state">Loading purchase orders...</p>
         ) : error ? (
-          <p className="rm-admin-purchases__state">Daftar belum dapat ditampilkan.</p>
+          <p className="rm-admin-purchases__state">The list could not be displayed.</p>
         ) : orders.length ? (
           <>
-            <div className="rm-admin-purchases__scroll" role="region" aria-label="Tabel pesanan pembelian" tabIndex={0}>
+            <div className="rm-admin-purchases__scroll" role="region" aria-label="Purchase orders table" tabIndex={0}>
               <table className="rm-admin-purchases__table">
                 <thead><tr>
-                  <th scope="col">Nomor pesanan</th><th scope="col">Pelanggan</th>
-                  <th scope="col">Motor / build</th><th scope="col">Harga</th>
-                  <th scope="col">Metode</th><th scope="col">Status</th>
-                  <th scope="col">Tanggal</th><th scope="col">Aksi</th>
+                  <th scope="col">Order number</th><th scope="col">Customer</th>
+                  <th scope="col">Motorcycle / build</th><th scope="col">Price</th>
+                  <th scope="col">Method</th><th scope="col">Status</th>
+                  <th scope="col">Date</th><th scope="col">Actions</th>
                 </tr></thead>
                 <tbody>
                   {orders.map((order) => (
@@ -155,22 +179,32 @@ function PurchaseList() {
                       <td>{order.paymentMethod === 'gopay' ? 'GoPay' : 'SeaBank'}</td>
                       <td>{ORDER_STATUS_LABELS[order.status] || order.status}</td>
                       <td>{formatDate(order.createdAt)}</td>
-                      <td><Link className="rm-admin-purchases__detail-link" to={`/admin/purchases/${encodeURIComponent(order.id)}`}>Detail</Link></td>
+                      <td className="rm-admin-purchases__actions">
+                        <Link className="rm-admin-purchases__detail-link" to={`/admin/purchases/${encodeURIComponent(order.id)}`}>Details</Link>
+                        <button
+                          className="rm-admin-purchases__delete-button"
+                          disabled={Boolean(deletingOrderId)}
+                          onClick={() => void deleteOrder(order)}
+                          type="button"
+                        >
+                          {deletingOrderId === order.id ? 'Cancelling...' : 'Delete'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <nav aria-label="Navigasi halaman pesanan pembelian" className="rm-admin-purchases__pagination">
-              <button disabled={page <= 1} onClick={() => { setLoading(true); setPage((current) => current - 1); }} type="button">Sebelumnya</button>
-              <span>Halaman {pagination.page} / {Math.max(pagination.totalPages, 1)}</span>
-              <button disabled={page >= pagination.totalPages} onClick={() => { setLoading(true); setPage((current) => current + 1); }} type="button">Berikutnya</button>
+            <nav aria-label="Purchase order pagination" className="rm-admin-purchases__pagination">
+              <button disabled={page <= 1} onClick={() => { setLoading(true); setPage((current) => current - 1); }} type="button">Previous</button>
+              <span>Page {pagination.page} / {Math.max(pagination.totalPages, 1)}</span>
+              <button disabled={page >= pagination.totalPages} onClick={() => { setLoading(true); setPage((current) => current + 1); }} type="button">Next</button>
             </nav>
           </>
         ) : (
           <div className="rm-admin-purchases__empty">
-            <h2>Belum ada pesanan.</h2>
-            <p>Pesanan pembelian langsung yang tercatat akan muncul di sini.</p>
+            <h2>No orders yet.</h2>
+            <p>Recorded direct purchase orders will appear here.</p>
           </div>
         )}
       </section>
@@ -189,12 +223,12 @@ function PurchaseDetail({ id }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  usePageTitle(order?.orderNumber ? `${order.orderNumber} — Pesanan RUKA` : 'Detail Pesanan — RUKA Motorworks');
+  usePageTitle(order?.orderNumber ? `${order.orderNumber} — RUKA Order` : 'Order Details — RUKA Motorworks');
 
   const loadOrder = useCallback(async () => {
     const result = await adminRequest(`/api/purchases/admin/${encodeURIComponent(id)}`);
     if (!result.ok) {
-      setError(getAdminError(result, 'Detail pesanan belum dapat dimuat.'));
+      setError(getAdminError(result, 'Order details could not be loaded.'));
       setLoading(false);
       return;
     }
@@ -208,15 +242,15 @@ function PurchaseDetail({ id }) {
         const response = await fetch(detail.paymentProofUrl, {
           headers: { Authorization: `Bearer ${getAdminToken()}` },
         });
-        if (!response.ok) throw new Error(`Bukti pembayaran tidak dapat dimuat (${response.status}).`);
+        if (!response.ok) throw new Error(`Payment proof could not be loaded (${response.status}).`);
         const imageUrl = URL.createObjectURL(await response.blob());
         setProofUrl((previous) => {
           if (previous) URL.revokeObjectURL(previous);
           return imageUrl;
         });
       } catch (proofError) {
-        console.error('Gagal memuat bukti pembayaran privat:', proofError);
-        setError(proofError.message || 'Bukti pembayaran belum dapat dimuat.');
+        console.error('Failed to load private payment proof:', proofError);
+        setError(proofError.message || 'Payment proof could not be loaded.');
       }
     } else {
       setProofUrl((previous) => {
@@ -232,7 +266,7 @@ function PurchaseDetail({ id }) {
       .then(async (result) => {
         if (!active) return;
         if (!result.ok) {
-          setError(getAdminError(result, 'Detail pesanan belum dapat dimuat.'));
+          setError(getAdminError(result, 'Order details could not be loaded.'));
           setLoading(false);
           return;
         }
@@ -246,7 +280,7 @@ function PurchaseDetail({ id }) {
             const response = await fetch(detail.paymentProofUrl, {
               headers: { Authorization: `Bearer ${getAdminToken()}` },
             });
-            if (!response.ok) throw new Error(`Bukti pembayaran tidak dapat dimuat (${response.status}).`);
+            if (!response.ok) throw new Error(`Payment proof could not be loaded (${response.status}).`);
             const imageUrl = URL.createObjectURL(await response.blob());
             if (active) {
               setProofUrl((previous) => {
@@ -257,8 +291,8 @@ function PurchaseDetail({ id }) {
               URL.revokeObjectURL(imageUrl);
             }
           } catch (proofError) {
-            console.error('Gagal memuat bukti pembayaran privat:', proofError);
-            if (active) setError(proofError.message || 'Bukti pembayaran belum dapat dimuat.');
+            console.error('Failed to load private payment proof:', proofError);
+            if (active) setError(proofError.message || 'Payment proof could not be loaded.');
           }
         } else {
           setProofUrl((previous) => {
@@ -269,9 +303,9 @@ function PurchaseDetail({ id }) {
         if (active) setLoading(false);
       })
       .catch((requestError) => {
-        console.error('Gagal memuat detail pesanan:', requestError);
+        console.error('Failed to load order details:', requestError);
         if (active) {
-          setError('Detail pesanan belum dapat dimuat.');
+          setError('Order details could not be loaded.');
           setLoading(false);
         }
       });
@@ -284,47 +318,75 @@ function PurchaseDetail({ id }) {
     if (proofUrl) URL.revokeObjectURL(proofUrl);
   }, [proofUrl]);
 
-  const performAction = async (url, options, successMessage) => {
+  const performAction = async (url, options, successMessage, redirectToList = false) => {
     setSaving(true);
     setError('');
     setNotice('');
     const result = await adminRequest(url, options);
     if (!result.ok) {
-      setError(getAdminError(result, 'Perubahan pesanan belum dapat disimpan.'));
+      setError(getAdminError(result, 'Order changes could not be saved.'));
       setSaving(false);
       return;
     }
     setNotice(successMessage);
+    if (redirectToList) {
+      setSaving(false);
+      navigate('/admin/purchases');
+      return;
+    }
     await loadOrder();
     setSaving(false);
   };
 
-  const shippingStatuses = order?.shippingMethod === 'pickup'
-    ? ['processing', 'ready_for_pickup', 'completed', 'cancelled']
-    : ['processing', 'ready_to_ship', 'completed', 'cancelled'];
+  const shippingStatuses = order?.orderStatus === 'processing'
+    ? order.shippingMethod === 'pickup'
+      ? ['processing', 'ready_for_pickup', 'cancelled']
+      : ['processing', 'ready_to_ship', 'cancelled']
+    : order?.orderStatus === 'ready_to_ship'
+      ? ['ready_to_ship', 'delivered']
+      : order?.orderStatus === 'ready_for_pickup'
+        ? ['ready_for_pickup']
+        : order?.orderStatus === 'delivered'
+          ? ['delivered']
+          : [order?.orderStatus || ''];
+  if (order?.canAdminComplete) shippingStatuses.push('completed');
 
   return (
     <AdminLayout active="purchases">
       <section aria-labelledby="rm-admin-purchase-detail-title" className="rm-admin__intro">
         <div>
-          <p className="rm-admin-meta">RUANG KERJA / PEMBELIAN / DETAIL</p>
-          <h1 id="rm-admin-purchase-detail-title">DETAIL PESANAN</h1>
-          <p className="rm-admin__welcome">{order?.orderNumber || 'Periksa snapshot dan status pesanan.'}</p>
+          <p className="rm-admin-meta">WORKSPACE / PURCHASES / DETAILS</p>
+          <h1 id="rm-admin-purchase-detail-title">ORDER DETAILS</h1>
+          <p className="rm-admin__welcome">{order?.orderNumber || 'Review the order snapshot and status.'}</p>
         </div>
         <Link className="rm-admin__public-link" to="/admin/purchases">
-          Kembali ke Pesanan Pembelian
+          Back to Purchase Orders
           <Icon name="arrow-up-right" size={16} />
         </Link>
       </section>
       {error ? <p className="rm-admin-purchases__error" role="alert">{error}</p> : null}
       {notice ? <p className="rm-admin-purchases__notice" role="status">{notice}</p> : null}
-      {loading ? <p className="rm-admin-purchases__state">Memuat detail pesanan...</p> : order ? (
+      {loading ? <p className="rm-admin-purchases__state">Loading order details...</p> : order ? (
         <>
-          <section aria-label="Status pembayaran dan pekerjaan" className="rm-admin-purchase-detail__status">
-            <div><p className="rm-admin-meta">PERSETUJUAN</p><p>{order.approvalStatus === 'approved' ? 'Disetujui' : order.approvalStatus === 'rejected' ? 'Ditolak' : 'Menunggu keputusan'}</p></div>
-            <div><p className="rm-admin-meta">PEMBAYARAN</p><p>{order.paymentStatus}</p></div>
-            <div><p className="rm-admin-meta">PENGERJAAN</p><p>{order.approvalStatus === 'pending_approval' ? 'Menunggu persetujuan admin' : order.orderStatus}</p></div>
-            {order.approvalRejectionReason ? <div><p className="rm-admin-meta">ALASAN PENOLAKAN</p><p>{order.approvalRejectionReason}</p></div> : null}
+          <section aria-label="Payment and build status" className="rm-admin-purchase-detail__status">
+            <div><p className="rm-admin-meta">APPROVAL</p><p>{order.approvalStatus === 'approved' ? 'Approved' : order.approvalStatus === 'rejected' ? 'Rejected' : 'Awaiting decision'}</p></div>
+            <div><p className="rm-admin-meta">PAYMENT</p><p>{order.paymentStatus}</p></div>
+            <div><p className="rm-admin-meta">BUILD PROGRESS</p><p>{order.approvalStatus === 'pending_approval' ? 'Awaiting admin approval' : order.orderStatus}</p></div>
+            {order.shippingMethod === 'delivery' && order.orderStatus === 'ready_to_ship' ? (
+              <div><p className="rm-admin-meta">DELIVERY STATUS</p><p>
+                Mark “Order arrived at destination” when the motorcycle reaches the customer. The three-day period starts at that time.
+              </p></div>
+            ) : null}
+            {order.orderStatus === 'delivered' || (order.shippingMethod === 'pickup' && order.orderStatus === 'ready_for_pickup') ? (
+              <div><p className="rm-admin-meta">CUSTOMER RECEIPT</p><p>
+                {order.customerReceivedAt
+                  ? `Confirmed ${formatDate(order.customerReceivedAt)}`
+                  : order.canAdminComplete
+                    ? 'Three-day waiting period passed; admin may complete this order.'
+                    : `Awaiting customer confirmation. Admin completion is available three days after ${order.shippingMethod === 'delivery' ? 'arrival at the destination' : 'the order was ready'} (${formatDate(order.readyAt)}).`}
+              </p></div>
+            ) : null}
+            {order.approvalRejectionReason ? <div><p className="rm-admin-meta">REJECTION REASON</p><p>{order.approvalRejectionReason}</p></div> : null}
             {order.approvalStatus === 'pending_approval' ? (
               <div className="rm-admin-purchase-detail__actions rm-admin-purchase-detail__approval">
                 <button
@@ -332,13 +394,13 @@ function PurchaseDetail({ id }) {
                   onClick={() => void performAction(
                     `/api/purchases/admin/${encodeURIComponent(id)}/approval`,
                     { method: 'PATCH', body: JSON.stringify({ decision: 'approved' }) },
-                    'Pesanan disetujui. Instruksi pembayaran tersedia setelah keputusan tersimpan.',
+                    'Order approved. Payment instructions are available once the decision is saved.',
                   )}
                   type="button"
                 >
-                  Setujui dan buka pembayaran
+                  Approve and enable payment
                 </button>
-                <label>Alasan penolakan
+                <label>Reason for rejection
                   <textarea maxLength={1000} minLength={10} onChange={(event) => setRejectionReason(event.target.value)} required rows={3} value={rejectionReason} />
                 </label>
                 <button
@@ -346,72 +408,92 @@ function PurchaseDetail({ id }) {
                   onClick={() => void performAction(
                     `/api/purchases/admin/${encodeURIComponent(id)}/approval`,
                     { method: 'PATCH', body: JSON.stringify({ decision: 'rejected', reason: rejectionReason }) },
-                    'Pesanan ditolak dan alasan tersimpan.',
+                    'Order rejected and reason saved.',
                   )}
                   type="button"
                 >
-                  Tolak pesanan
+                  Reject order
                 </button>
               </div>
             ) : null}
             {order.paymentStatus === 'waiting_verification' ? (
               <div className="rm-admin-purchase-detail__actions">
-                <button disabled={saving} onClick={() => void performAction(`/api/purchases/admin/${encodeURIComponent(id)}/payment-review`, { method: 'POST', body: JSON.stringify({ decision: 'paid' }) }, 'Pembayaran dikonfirmasi dan tersimpan.')} type="button">Konfirmasi pembayaran masuk</button>
-                <button disabled={saving} onClick={() => void performAction(`/api/purchases/admin/${encodeURIComponent(id)}/payment-review`, { method: 'POST', body: JSON.stringify({ decision: 'rejected' }) }, 'Bukti ditolak. Pelanggan dapat mengunggah ulang.')} type="button">Tolak bukti</button>
+                <button disabled={saving} onClick={() => void performAction(`/api/purchases/admin/${encodeURIComponent(id)}/payment-review`, { method: 'POST', body: JSON.stringify({ decision: 'paid' }) }, 'Payment confirmed and saved.')} type="button">Confirm payment received</button>
+                <button disabled={saving} onClick={() => void performAction(`/api/purchases/admin/${encodeURIComponent(id)}/payment-review`, { method: 'POST', body: JSON.stringify({ decision: 'rejected' }) }, 'Payment proof rejected. The customer can upload a new one.')} type="button">Reject proof</button>
               </div>
             ) : null}
           </section>
 
           <div className="rm-admin-purchase-detail__grid">
             <section className="rm-admin-panel">
-              <p className="rm-admin-meta">A / IDENTITAS PELANGGAN</p><h2>DATA PELANGGAN</h2>
+              <p className="rm-admin-meta">A / CUSTOMER IDENTITY</p><h2>CUSTOMER DETAILS</h2>
               <dl className="rm-admin-purchase-detail__fields">
-                <div><dt>Nama</dt><dd>{order.customerName}</dd></div>
+                <div><dt>Name</dt><dd>{order.customerName}</dd></div>
                 <div><dt>WhatsApp</dt><dd>{order.phone}</dd></div>
-                <div><dt>Email</dt><dd>{order.email || 'Tidak tersedia'}</dd></div>
-                <div><dt>Kota</dt><dd>{order.city}</dd></div>
-                <div><dt>Pengambilan / pengiriman</dt><dd>{order.shippingMethod === 'pickup' ? 'Pengambilan langsung' : 'Pengiriman'}</dd></div>
-                {order.shippingMethod === 'delivery' ? <div><dt>Alamat</dt><dd>{order.deliveryAddress}</dd></div> : null}
+                <div><dt>Email</dt><dd>{order.email || 'Unavailable'}</dd></div>
+                <div><dt>City</dt><dd>{order.city}</dd></div>
+                <div><dt>Pickup / delivery</dt><dd>{order.shippingMethod === 'pickup' ? 'Pickup' : 'Delivery'}</dd></div>
+                {order.shippingMethod === 'delivery' ? <div><dt>Address</dt><dd>{order.deliveryAddress}</dd></div> : null}
               </dl>
             </section>
             <section className="rm-admin-panel">
-              <p className="rm-admin-meta">B / SNAPSHOT BUILD</p><h2>{order.buildName}</h2>
-              {order.imageSnapshot ? <img alt={`Foto snapshot ${order.buildName}`} className="rm-admin-purchase-detail__product-image" src={order.imageSnapshot} /> : null}
+              <p className="rm-admin-meta">B / BUILD SNAPSHOT</p><h2>{order.buildName}</h2>
+              {order.imageSnapshot ? <img alt={`Build snapshot for ${order.buildName}`} className="rm-admin-purchase-detail__product-image" src={order.imageSnapshot} /> : null}
               <dl className="rm-admin-purchase-detail__fields">
-                <div><dt>Produk</dt><dd>{order.productName}</dd></div>
-                <div><dt>Basis motor</dt><dd>{order.basis}</dd></div>
-                <div><dt>Kategori</dt><dd>{order.categoryName}</dd></div>
-                <div><dt>Spesifikasi tetap</dt><dd>{JSON.parse(order.specifications || '[]').map(({ label, value }) => `${label}: ${value}`).join(' · ') || '—'}</dd></div>
-                <div><dt>Snapshot harga</dt><dd>{formatRupiah(order.price)}</dd></div>
-                <div><dt>Ongkir</dt><dd>{order.shippingCost == null ? 'Menunggu konfirmasi' : formatRupiah(order.shippingCost)}</dd></div>
+                <div><dt>Product</dt><dd>{order.productName}</dd></div>
+                <div><dt>Motorcycle basis</dt><dd>{order.basis}</dd></div>
+                <div><dt>Category</dt><dd>{order.categoryName}</dd></div>
+                <div><dt>Fixed specifications</dt><dd>{JSON.parse(order.specifications || '[]').map(({ label, value }) => `${label}: ${value}`).join(' · ') || '—'}</dd></div>
+                <div><dt>Price snapshot</dt><dd>{formatRupiah(order.price)}</dd></div>
+                <div><dt>Shipping</dt><dd>{order.shippingCost == null ? 'Awaiting confirmation' : formatRupiah(order.shippingCost)}</dd></div>
                 <div><dt>Total</dt><dd>{formatRupiah(order.totalAmount)}</dd></div>
-                <div><dt>Metode pembayaran</dt><dd>{order.paymentMethod === 'gopay' ? 'GoPay' : 'SeaBank'}</dd></div>
-                <div><dt>Tanggal pesanan</dt><dd>{formatDate(order.createdAt)}</dd></div>
+                <div><dt>Payment method</dt><dd>{order.paymentMethod === 'gopay' ? 'GoPay' : 'SeaBank'}</dd></div>
+                <div><dt>Order date</dt><dd>{formatDate(order.createdAt)}</dd></div>
               </dl>
             </section>
             {order.orderStatus === 'awaiting_shipping_quote' ? (
               <section className="rm-admin-panel rm-admin-purchase-detail__quote">
-                <p className="rm-admin-meta">ONGKIR / KONFIRMASI ADMIN</p><h2>Konfirmasi biaya pengiriman</h2>
-                <label>Biaya ongkir (Rupiah)
+                <p className="rm-admin-meta">SHIPPING / ADMIN CONFIRMATION</p><h2>Confirm shipping cost</h2>
+                <label>Shipping cost (Rupiah)
                   <input min="0" onChange={(event) => setShippingCost(event.target.value)} step="1" type="number" value={shippingCost} />
                 </label>
-                <p>Masukkan ongkir yang sudah dikonfirmasi dengan pelanggan. Total dan instruksi transfer baru akan tersedia sesudah disimpan.</p>
-                <button disabled={saving || !Number.isSafeInteger(Number(shippingCost)) || Number(shippingCost) < 0} onClick={() => void performAction(`/api/purchases/admin/${encodeURIComponent(id)}/shipping-quote`, { method: 'POST', body: JSON.stringify({ shippingCost: Number(shippingCost) }) }, 'Biaya pengiriman berhasil disimpan.')} type="button">Simpan biaya pengiriman</button>
+                <p>Enter the shipping cost confirmed with the customer. The total and transfer instructions will be available once saved.</p>
+                <button disabled={saving || !Number.isSafeInteger(Number(shippingCost)) || Number(shippingCost) < 0} onClick={() => void performAction(`/api/purchases/admin/${encodeURIComponent(id)}/shipping-quote`, { method: 'POST', body: JSON.stringify({ shippingCost: Number(shippingCost) }) }, 'Shipping cost saved.')} type="button">Save shipping cost</button>
               </section>
             ) : null}
             <section className="rm-admin-panel">
-              <p className="rm-admin-meta">C / BUKTI TRANSFER PRIVAT</p><h2>BUKTI PEMBAYARAN</h2>
-              {proofUrl ? <a href={proofUrl} rel="noreferrer noopener" target="_blank"><img alt={`Bukti pembayaran ${order.orderNumber}`} className="rm-admin-purchase-detail__proof" src={proofUrl} /></a> : <p className="rm-admin-purchases__state">Belum ada bukti pembayaran.</p>}
+              <p className="rm-admin-meta">C / PRIVATE TRANSFER PROOF</p><h2>PAYMENT PROOF</h2>
+              {proofUrl ? <a href={proofUrl} rel="noreferrer noopener" target="_blank"><img alt={`Payment proof for ${order.orderNumber}`} className="rm-admin-purchase-detail__proof" src={proofUrl} /></a> : <p className="rm-admin-purchases__state">No payment proof yet.</p>}
             </section>
             {order.paymentStatus === 'paid' ? (
               <section className="rm-admin-panel rm-admin-purchase-detail__status-form">
-                <p className="rm-admin-meta">D / PROGRES PESANAN</p><h2>PERBARUI PENGERJAAN</h2>
-                <label>Status pengerjaan
+                <p className="rm-admin-meta">D / ORDER PROGRESS</p><h2>UPDATE BUILD PROGRESS</h2>
+                <label>Build status
                   <select onChange={(event) => setNextStatus(event.target.value)} value={nextStatus}>
-                    {shippingStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                    {shippingStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {{
+                          ready_to_ship: 'Order delivery',
+                          delivered: 'Order arrived at destination',
+                        }[status] || status.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                      </option>
+                    ))}
                   </select>
                 </label>
-                <button disabled={saving || nextStatus === order.orderStatus} onClick={() => void performAction(`/api/purchases/admin/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: JSON.stringify({ status: nextStatus }) }, 'Status pengerjaan berhasil disimpan.')} type="button">Simpan status pengerjaan</button>
+                <button
+                  disabled={saving || nextStatus === order.orderStatus}
+                  onClick={() => void performAction(
+                    `/api/purchases/admin/${encodeURIComponent(id)}/status`,
+                    { method: 'PATCH', body: JSON.stringify({ status: nextStatus }) },
+                    nextStatus === 'completed'
+                      ? 'Order completed and removed from Purchase Orders.'
+                      : 'Build status saved.',
+                    nextStatus === 'completed',
+                  )}
+                  type="button"
+                >
+                  Save build status
+                </button>
               </section>
             ) : null}
           </div>

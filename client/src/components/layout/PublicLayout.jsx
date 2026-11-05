@@ -6,7 +6,7 @@ export default function PublicLayout({ children }) {
   return (
     <div className="rm-site">
       <a className="rm-skip-link" href="#main-content">
-        Lewati ke konten utama
+        Skip to main content
       </a>
       <Navbar />
       {children}

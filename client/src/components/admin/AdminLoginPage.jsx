@@ -13,7 +13,7 @@ export default function AdminLoginPage({ sessionExpired = false }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const adminSession = useAdminSession();
 
-  usePageTitle('Masuk Admin — RUKA Motorworks');
+  usePageTitle('Admin Login — RUKA Motorworks');
 
   useEffect(() => {
     if (adminSession.status === 'authenticated') {
@@ -27,7 +27,7 @@ export default function AdminLoginPage({ sessionExpired = false }) {
     setError('');
 
     if (!email.trim() || !password) {
-      setError('Email dan kata sandi wajib diisi.');
+      setError('Email and password are required.');
       return;
     }
 
@@ -41,15 +41,15 @@ export default function AdminLoginPage({ sessionExpired = false }) {
       const result = await response.json().catch(() => null);
 
       if (!response.ok || !result?.success || !result.token || !result.user) {
-        setError(result?.message || `Login gagal (${response.status}).`);
+        setError(result?.message || `Login failed (${response.status}).`);
         return;
       }
 
       saveAdminSession(result.token, result.user);
       navigate('/admin/dashboard');
     } catch (requestError) {
-      console.error('Gagal menghubungi layanan login admin:', requestError);
-      setError('Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi.');
+      console.error('Failed to reach the admin login service:', requestError);
+      setError('Unable to connect to the server. Check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -60,15 +60,15 @@ export default function AdminLoginPage({ sessionExpired = false }) {
       <Logo className="rm-admin-login__brand" />
 
       <section aria-labelledby="rm-admin-login-title" className="rm-admin-login__panel">
-        <p className="rm-admin-meta">RUANG KERJA / ADMIN</p>
-        <h1 id="rm-admin-login-title">MASUK ADMIN.</h1>
+        <p className="rm-admin-meta">WORKSPACE / ADMIN</p>
+        <h1 id="rm-admin-login-title">ADMIN LOGIN.</h1>
         <p className="rm-admin-login__description">
-          Masuk untuk mengelola ringkasan build dan permintaan konsultasi Ruka.
+          Log in to manage Ruka's build overview and consultation requests.
         </p>
 
         {sessionExpired ? (
           <p className="rm-admin-notice" role="status">
-            Sesi admin berakhir. Silakan masuk kembali.
+            Your admin session has expired. Please log in again.
           </p>
         ) : null}
         {error ? <p className="rm-admin-error" role="alert">{error}</p> : null}
@@ -86,7 +86,7 @@ export default function AdminLoginPage({ sessionExpired = false }) {
             />
           </label>
           <label>
-            <span>Kata sandi</span>
+            <span>Password</span>
             <input
               autoComplete="current-password"
               onChange={(event) => setPassword(event.target.value)}
@@ -96,13 +96,13 @@ export default function AdminLoginPage({ sessionExpired = false }) {
             />
           </label>
           <button disabled={isSubmitting} type="submit">
-            {isSubmitting ? 'Memeriksa sesi...' : 'Masuk'}
+            {isSubmitting ? 'Signing in...' : 'Log in'}
             {!isSubmitting ? <Icon name="arrow-up-right" size={18} /> : null}
           </button>
         </form>
 
         <a className="rm-admin-login__back" href="/">
-          Kembali ke Ruka Motorworks
+          Back to Ruka Motorworks
         </a>
       </section>
     </main>

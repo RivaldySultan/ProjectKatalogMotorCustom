@@ -8,23 +8,26 @@ import { navigate } from '../lib/router';
 import './CustomerPurchasePage.css';
 
 const STATUS_LABELS = {
-  pending_approval: 'Menunggu persetujuan Ruka',
-  waiting_shipping_quote: 'Menunggu konfirmasi ongkir',
-  pending_payment: 'Menunggu pembayaran',
-  waiting_verification: 'Menunggu verifikasi pembayaran',
-  payment_rejected: 'Bukti pembayaran ditolak',
-  paid: 'Pembayaran terkonfirmasi',
-  processing: 'Sedang dikerjakan',
-  ready: 'Siap diambil / dikirim',
-  completed: 'Pesanan selesai',
-  rejected: 'Pesanan tidak disetujui',
+  pending_approval: 'Awaiting Ruka approval',
+  waiting_shipping_quote: 'Awaiting shipping quote',
+  pending_payment: 'Awaiting payment',
+  waiting_verification: 'Awaiting payment verification',
+  payment_rejected: 'Payment proof rejected',
+  paid: 'Payment confirmed',
+  processing: 'In progress',
+  ready: 'Ready for pickup / shipping',
+  completed: 'Order completed',
+  rejected: 'Order not approved',
+  cancelled: 'Order cancelled',
 };
 
 function getStatus(order) {
+  if (order.cancelledByAdmin) return 'cancelled';
+  if (order.approvalStatus === 'rejected') return 'rejected';
+  if (order.orderStatus === 'cancelled') return 'cancelled';
   if (order.approvalStatus === 'pending_approval') {
     return order.orderStatus === 'awaiting_shipping_quote' ? 'waiting_shipping_quote' : 'pending_approval';
   }
-  if (order.approvalStatus === 'rejected') return 'rejected';
   if (order.paymentStatus === 'waiting_verification') return 'waiting_verification';
   if (order.paymentStatus === 'rejected') return 'payment_rejected';
   if (order.paymentStatus === 'paid') {
@@ -45,7 +48,7 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(hasValidAccessToken
     ? ''
-    : 'Tautan akses pesanan tidak valid. Gunakan tautan status yang diberikan setelah membuat pesanan.');
+    : 'Invalid order access link. Use the status link provided after placing your order.');
   const [notice, setNotice] = useState('');
   const [copied, setCopied] = useState('');
   const [claiming, setClaiming] = useState(false);
@@ -53,23 +56,23 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
   const customerSession = useCustomerSession();
   const orderStatus = getStatus(order || {});
   const whatsappLink = useMemo(() => order && getWhatsAppLink([
-    `Halo Ruka Motorworks, saya ingin menanyakan pesanan ${order.orderNumber}.`,
-    `Nama: ${order.customerName}`,
+    `Hello Ruka Motorworks, I have a question about order ${order.orderNumber}.`,
+    `Name: ${order.customerName}`,
     `Build: ${order.buildName}`,
-    `Harga: ${formatRupiah(order.totalAmount)}`,
-    `Metode pembayaran: ${order.paymentMethod === 'gopay' ? 'GoPay' : 'SeaBank'}`,
-    `Status pesanan: ${STATUS_LABELS[orderStatus] || orderStatus}`,
-    `Status pembayaran: ${order.paymentStatus}`,
+    `Price: ${formatRupiah(order.totalAmount)}`,
+    `Payment method: ${order.paymentMethod === 'gopay' ? 'GoPay' : 'SeaBank'}`,
+    `Order status: ${STATUS_LABELS[orderStatus] || orderStatus}`,
+    `Payment status: ${order.paymentStatus}`,
   ].join('\n')), [order, orderStatus]);
 
-  usePageTitle(order?.orderNumber ? `${order.orderNumber} — Status Pesanan RUKA` : 'Status Pesanan — RUKA Motorworks');
+  usePageTitle(order?.orderNumber ? `${order.orderNumber} — RUKA Order Status` : 'Order Status — RUKA Motorworks');
 
   const fetchOrder = useCallback(async () => {
     const response = await fetch(`/api/purchases/${encodeURIComponent(orderId)}`, {
       headers: { 'X-Order-Access-Token': accessToken },
     });
     const result = await response.json();
-    if (!response.ok || !result.success) throw new Error(result.message || 'Status pesanan belum dapat dimuat.');
+    if (!response.ok || !result.success) throw new Error(result.message || 'Order status could not be loaded.');
     return result.data;
   }, [accessToken, orderId]);
 
@@ -83,8 +86,8 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
         setError('');
       })
       .catch((requestError) => {
-        console.error('Gagal memuat status pesanan:', requestError);
-        if (active) setError(requestError.message || 'Status pesanan belum dapat dimuat.');
+        console.error('Failed to load order status:', requestError);
+        if (active) setError(requestError.message || 'Order status could not be loaded.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -100,8 +103,8 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
       setOrder(await fetchOrder());
       setError('');
     } catch (requestError) {
-      console.error('Gagal memuat status pesanan:', requestError);
-      setError(requestError.message || 'Status pesanan belum dapat dimuat.');
+      console.error('Failed to load order status:', requestError);
+      setError(requestError.message || 'Order status could not be loaded.');
     } finally {
       setLoading(false);
     }
@@ -128,7 +131,7 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
         }
       })
       .catch((proofError) => {
-        console.error('Gagal memuat bukti pembayaran:', proofError);
+        console.error('Failed to load payment proof:', proofError);
       });
     return () => {
       active = false;
@@ -149,12 +152,12 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
     setError('');
     if (!selected) return;
     if (!['image/jpeg', 'image/png'].includes(selected.type)) {
-      setError('Bukti pembayaran hanya boleh berupa JPG atau PNG.');
+      setError('Payment proof must be a JPG or PNG image.');
       event.target.value = '';
       return;
     }
     if (selected.size > 5 * 1024 * 1024) {
-      setError('Ukuran bukti pembayaran maksimal 5 MB.');
+      setError('Payment proof must not exceed 5 MB.');
       event.target.value = '';
       return;
     }
@@ -177,14 +180,14 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
         body,
       });
       const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(result.message || 'Bukti pembayaran belum dapat dikirim.');
+      if (!response.ok || !result.success) throw new Error(result.message || 'Payment proof could not be submitted.');
       setOrder(result.data);
       setProof(null);
       setProofPreview('');
-      setNotice('Bukti pembayaran diterima dan menunggu pemeriksaan admin. Status belum menjadi lunas.');
+      setNotice('Payment proof received and awaiting admin review. This does not mark the order as paid.');
     } catch (requestError) {
-      console.error('Gagal mengirim bukti pembayaran:', requestError);
-      setError(requestError.message || 'Bukti pembayaran belum dapat dikirim.');
+      console.error('Failed to submit payment proof:', requestError);
+      setError(requestError.message || 'Payment proof could not be submitted.');
     } finally {
       setUploading(false);
     }
@@ -193,10 +196,10 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
   const copyText = async (value, label) => {
     try {
       await navigator.clipboard.writeText(String(value));
-      setCopied(`${label} berhasil disalin.`);
+      setCopied(`${label} copied.`);
     } catch (copyError) {
-      console.error(`Gagal menyalin ${label.toLowerCase()}:`, copyError);
-      setCopied(`Tidak dapat menyalin ${label.toLowerCase()} pada perangkat ini.`);
+      console.error(`Failed to copy ${label.toLowerCase()}:`, copyError);
+      setCopied(`Unable to copy ${label.toLowerCase()} on this device.`);
     }
   };
 
@@ -209,125 +212,125 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
     });
     setClaiming(false);
     if (!result.ok) {
-      setClaimError(result.message || 'Pesanan belum dapat ditautkan ke akun.');
+      setClaimError(result.message || 'The order could not be linked to your account.');
       return;
     }
     navigate(`/akun/pesanan/${encodeURIComponent(order.id)}`);
   };
 
   if (loading) {
-    return <main className="rm-customer-order rm-container"><p>Memuat status pesanan...</p></main>;
+    return <main className="rm-customer-order rm-container"><p>Loading order status...</p></main>;
   }
 
   return (
     <main className="rm-customer-order rm-container" id="main-content" tabIndex={-1}>
       <nav aria-label="Jejak navigasi" className="rm-customer-order__breadcrumb">
-        <Link to="/katalog">Katalog</Link><span aria-hidden="true">/</span><span>Status pesanan</span>
+        <Link to="/katalog">Catalog</Link><span aria-hidden="true">/</span><span>Order status</span>
       </nav>
-      {error && !order ? <section className="rm-customer-order__panel"><h1>Status pesanan belum tersedia</h1><p role="alert">{error}</p><Link to="/katalog">Kembali ke katalog</Link></section> : null}
+      {error && !order ? <section className="rm-customer-order__panel"><h1>Order status unavailable</h1><p role="alert">{error}</p><Link to="/katalog">Back to catalog</Link></section> : null}
       {notice ? <p className="rm-customer-order__message" role="status">{notice}</p> : null}
       {order ? (
         <>
           <header className="rm-customer-order__heading">
             <p className="rm-eyebrow">RUANG ORDER / STATUS PESANAN</p>
             <h1>{order.orderNumber}</h1>
-            <p>Pesanan pembelian langsung ini tersimpan terpisah dari konsultasi custom.</p>
+            <p>This direct purchase order is recorded separately from custom consultations.</p>
             {customerSession.status === 'authenticated' ? (
               order.isClaimed ? (
                 <div className="rm-customer-order__claim">
-                  <p>Pesanan ini sudah terhubung ke akun Anda.</p>
+                  <p>This order is already linked to your account.</p>
                   <Link className="rm-customer-order__secondary" to={`/akun/pesanan/${encodeURIComponent(order.id)}`}>
-                    Buka di Pesanan Saya
+                    View in My Orders
                   </Link>
                 </div>
               ) : (
                 <div className="rm-customer-order__claim">
                   <button className="rm-customer-order__secondary" disabled={claiming} onClick={() => void claimOrder()} type="button">
-                    {claiming ? 'Menautkan...' : 'Tambahkan pesanan ini ke akun'}
+                    {claiming ? 'Linking...' : 'Link this order to your account'}
                   </button>
-                  <p>Penautan memerlukan email dan nomor WhatsApp yang cocok dengan data pesanan.</p>
+                  <p>To link this order, the email and WhatsApp number must match the order details.</p>
                   {claimError ? <p role="alert">{claimError}</p> : null}
                 </div>
               )
             ) : customerSession.status === 'unauthenticated' ? (
-              <p className="rm-customer-order__claim">Punya akun? <a href={`/login?return=${encodeURIComponent(`${window.location.pathname}${window.location.hash}`)}`}>Login untuk menautkan pesanan</a>.</p>
+              <p className="rm-customer-order__claim">Have an account? <a href={`/login?return=${encodeURIComponent(`${window.location.pathname}${window.location.hash}`)}`}>Log in to link this order</a>.</p>
             ) : null}
           </header>
-          <section aria-label="Status pesanan" className="rm-customer-order__status">
-            <p className="rm-meta">STATUS TERKINI</p>
-            <h2>{STATUS_LABELS[orderStatus] || 'Status diperbarui'}</h2>
-            {order.approvalRejectionReason ? <p>Alasan: {order.approvalRejectionReason}</p> : null}
-            {orderStatus === 'pending_approval' ? <p>Ruka akan meninjau ketersediaan build sebelum menampilkan instruksi pembayaran.</p> : null}
-            {orderStatus === 'waiting_shipping_quote' ? <p>Ongkir belum ditentukan. Ruka akan mengonfirmasi biaya pengiriman sebelum pembayaran.</p> : null}
-            {orderStatus === 'waiting_verification' ? <p>Bukti transfer diterima; admin perlu memeriksa dana masuk. Unggah bukti tidak otomatis mengonfirmasi pembayaran.</p> : null}
-            <button className="rm-customer-order__secondary" onClick={() => void loadOrder()} type="button">Perbarui status</button>
+          <section aria-label="Order status" className="rm-customer-order__status">
+            <p className="rm-meta">CURRENT STATUS</p>
+            <h2>{STATUS_LABELS[orderStatus] || 'Status updated'}</h2>
+            {order.approvalRejectionReason ? <p>Reason: {order.approvalRejectionReason}</p> : null}
+            {orderStatus === 'pending_approval' ? <p>Ruka will review build availability before showing payment instructions.</p> : null}
+            {orderStatus === 'waiting_shipping_quote' ? <p>Shipping cost has not been set. Ruka will confirm it before payment.</p> : null}
+            {orderStatus === 'waiting_verification' ? <p>Transfer proof received; an admin must verify the funds. Uploading proof does not automatically confirm payment.</p> : null}
+            <button className="rm-customer-order__secondary" onClick={() => void loadOrder()} type="button">Refresh status</button>
           </section>
           <div className="rm-customer-order__layout">
             <section className="rm-customer-order__panel">
-              <p className="rm-meta">RINGKASAN BUILD</p>
+              <p className="rm-meta">BUILD SUMMARY</p>
               <h2>{order.buildName}</h2>
               <img alt={order.buildName} className="rm-customer-order__image" src={getCatalogProductImage({ image: order.imageSnapshot, name: order.productName })} />
               <dl className="rm-customer-order__fields">
-                <div><dt>Basis motor</dt><dd>{order.basis}</dd></div>
-                <div><dt>Kategori</dt><dd>{order.categoryName}</dd></div>
+                <div><dt>Motorcycle basis</dt><dd>{order.basis}</dd></div>
+                <div><dt>Category</dt><dd>{order.categoryName}</dd></div>
                 {JSON.parse(order.specifications || '[]').map(({ label, value }, index) => <div key={`${label}-${index}`}><dt>{label}</dt><dd>{value}</dd></div>)}
-                <div><dt>Harga build</dt><dd>{formatRupiah(order.price)}</dd></div>
-                <div><dt>Ongkir</dt><dd>{order.shippingCost == null ? 'Menunggu konfirmasi' : formatRupiah(order.shippingCost)}</dd></div>
+                <div><dt>Build price</dt><dd>{formatRupiah(order.price)}</dd></div>
+                <div><dt>Shipping</dt><dd>{order.shippingCost == null ? 'Awaiting confirmation' : formatRupiah(order.shippingCost)}</dd></div>
                 <div><dt>Total</dt><dd>{formatRupiah(order.totalAmount)}</dd></div>
-                <div><dt>Nama pelanggan</dt><dd>{order.customerName}</dd></div>
-                <div><dt>Nomor pesanan</dt><dd>{order.orderNumber}</dd></div>
+                <div><dt>Customer name</dt><dd>{order.customerName}</dd></div>
+                <div><dt>Order number</dt><dd>{order.orderNumber}</dd></div>
               </dl>
             </section>
             <section className="rm-customer-order__panel">
-              <p className="rm-meta">TRANSFER MANUAL</p>
-              <h2>Instruksi pembayaran</h2>
+              <p className="rm-meta">MANUAL TRANSFER</p>
+              <h2>Payment instructions</h2>
               {order.paymentInstructions ? (
                 <>
                   <dl className="rm-customer-order__fields">
-                    <div><dt>Metode</dt><dd>{order.paymentInstructions.label}</dd></div>
-                    <div><dt>Nomor tujuan</dt><dd>{order.paymentInstructions.recipientNumber}</dd></div>
-                    <div><dt>Nama penerima</dt><dd>{order.paymentInstructions.recipientName}</dd></div>
-                    <div><dt>Nominal</dt><dd>{formatRupiah(order.paymentInstructions.amount)}</dd></div>
-                    <div><dt>Nomor pesanan</dt><dd>{order.paymentInstructions.orderNumber}</dd></div>
-                    <div><dt>Batas pembayaran</dt><dd>{order.paymentInstructions.deadline || 'Tidak ditentukan'}</dd></div>
+                    <div><dt>Method</dt><dd>{order.paymentInstructions.label}</dd></div>
+                    <div><dt>Account number</dt><dd>{order.paymentInstructions.recipientNumber}</dd></div>
+                    <div><dt>Account name</dt><dd>{order.paymentInstructions.recipientName}</dd></div>
+                    <div><dt>Amount</dt><dd>{formatRupiah(order.paymentInstructions.amount)}</dd></div>
+                    <div><dt>Order number</dt><dd>{order.paymentInstructions.orderNumber}</dd></div>
+                    <div><dt>Payment deadline</dt><dd>{order.paymentInstructions.deadline || 'Not specified'}</dd></div>
                   </dl>
                   <div className="rm-customer-order__actions">
-                    <button className="rm-customer-order__secondary" onClick={() => void copyText(order.paymentInstructions.recipientNumber, 'Nomor pembayaran')} type="button">Salin nomor pembayaran</button>
-                    <button className="rm-customer-order__secondary" onClick={() => void copyText(order.paymentInstructions.amount, 'Nominal pembayaran')} type="button">Salin nominal</button>
+                    <button className="rm-customer-order__secondary" onClick={() => void copyText(order.paymentInstructions.recipientNumber, 'Account number')} type="button">Copy account number</button>
+                    <button className="rm-customer-order__secondary" onClick={() => void copyText(order.paymentInstructions.amount, 'Payment amount')} type="button">Copy amount</button>
                   </div>
-                  <p className="rm-customer-order__note">Transfer manual. Pembayaran dikonfirmasi setelah admin memeriksa dana masuk.</p>
+                  <p className="rm-customer-order__note">Manual transfer. Payment is confirmed after an admin verifies receipt of funds.</p>
                 </>
-              ) : <p className="rm-customer-order__note">Instruksi pembayaran akan tersedia setelah pesanan disetujui admin.</p>}
+              ) : <p className="rm-customer-order__note">Payment instructions will be available once the order is approved by an admin.</p>}
               {copied ? <p role="status">{copied}</p> : null}
               {order.hasPaymentProof ? (
                 <div style={{ marginTop: '16px', marginBottom: '16px' }}>
-                  <p className="rm-meta">BUKTI TRANSFER TERKIRIM</p>
+                  <p className="rm-meta">SUBMITTED TRANSFER PROOF</p>
                   {currentProofUrl ? (
-                    <img alt="Bukti transfer terkirim" className="rm-customer-order__proof-preview" src={currentProofUrl} />
+                    <img alt="Submitted transfer proof" className="rm-customer-order__proof-preview" src={currentProofUrl} />
                   ) : (
-                    <p className="rm-customer-order__note">Bukti pembayaran tersimpan dan sedang diverifikasi admin.</p>
+                    <p className="rm-customer-order__note">Payment proof saved and awaiting admin verification.</p>
                   )}
                 </div>
               ) : null}
-              {order.approvalStatus === 'approved' && ['pending_payment', 'waiting_verification', 'rejected'].includes(order.paymentStatus) ? (
+              {order.orderStatus !== 'cancelled' && order.approvalStatus === 'approved' && ['pending_payment', 'waiting_verification', 'rejected'].includes(order.paymentStatus) ? (
                 <form className="rm-customer-order__upload" onSubmit={uploadProof}>
                   <label htmlFor="rm-customer-order-proof">
-                    {order.hasPaymentProof ? 'Ganti / unggah ulang bukti transfer (JPG/PNG, maks. 5 MB)' : 'Unggah bukti transfer (JPG/PNG, maks. 5 MB)'}
+                    {order.hasPaymentProof ? 'Replace / re-upload transfer proof (JPG/PNG, max. 5 MB)' : 'Upload transfer proof (JPG/PNG, max. 5 MB)'}
                   </label>
                   <input accept="image/jpeg,image/png" id="rm-customer-order-proof" onChange={handleProofChange} type="file" />
-                  {proofPreview ? <img alt="Pratinjau bukti transfer baru" className="rm-customer-order__proof-preview" src={proofPreview} /> : null}
+                  {proofPreview ? <img alt="New transfer proof preview" className="rm-customer-order__proof-preview" src={proofPreview} /> : null}
                   {error ? <p role="alert">{error}</p> : null}
                   <button className="rm-customer-order__primary" disabled={!proof || uploading} type="submit">
-                    {uploading ? 'Mengirim...' : order.hasPaymentProof ? 'Perbarui bukti pembayaran' : 'Kirim bukti pembayaran'}
+                    {uploading ? 'Uploading...' : order.hasPaymentProof ? 'Update payment proof' : 'Submit payment proof'}
                   </button>
                 </form>
               ) : order.paymentStatus === 'paid' ? (
-                <p className="rm-customer-order__note" style={{ color: 'var(--rm-accent)' }}>Pembayaran telah dikonfirmasi oleh admin. Bukti transfer terkunci.</p>
+                <p className="rm-customer-order__note" style={{ color: 'var(--rm-accent)' }}>Payment has been confirmed by an admin. The transfer proof is locked.</p>
               ) : null}
             </section>
           </div>
           {error && order ? <p className="rm-customer-order__message is-error" role="alert">{error}</p> : null}
-          <a className="rm-customer-order__whatsapp" href={whatsappLink} rel="noopener noreferrer" target="_blank">Hubungi Ruka melalui WhatsApp</a>
+          <a className="rm-customer-order__whatsapp" href={whatsappLink} rel="noopener noreferrer" target="_blank">Contact Ruka on WhatsApp</a>
         </>
       ) : null}
     </main>

@@ -10,21 +10,21 @@ import { getConsultationPath } from '../../lib/router';
 import './Navbar.css';
 
 const VISITOR_LINKS = [
-  { to: '/katalog', label: 'Katalog Motor' },
-  { to: '/#gaya', label: 'Gaya Custom' },
-  { to: '/#process', label: 'Proses' },
-  { to: '/#tentang', label: 'Tentang Ruka' },
+  { to: '/katalog', label: 'Motorcycle Catalog' },
+  { to: '/#gaya', label: 'Custom Styles' },
+  { to: '/#process', label: 'Process' },
+  { to: '/#tentang', label: 'About Ruka' },
 ];
 
 const CUSTOMER_LINKS = [
-  { to: '/katalog', label: 'Katalog Motor' },
-  { to: '/akun/pesanan', label: 'Pesanan Saya' },
-  { to: '/akun', label: 'Akun Saya' },
+  { to: '/katalog', label: 'Motorcycle Catalog' },
+  { to: '/akun/pesanan', label: 'My Orders' },
+  { to: '/akun', label: 'My Account' },
 ];
 
 const ADMIN_LINKS = [
-  { to: '/katalog', label: 'Katalog Motor' },
-  { to: '/admin/dashboard', label: 'Dashboard Admin' },
+  { to: '/katalog', label: 'Motorcycle Catalog' },
+  { to: '/admin/dashboard', label: 'Admin Dashboard' },
 ];
 
 function isLinkActive(link, route) {
@@ -99,7 +99,7 @@ export default function Navbar() {
     setLogoutError('');
     const result = await logoutCustomer();
     if (!result.ok) {
-      setLogoutError(result.message || 'Logout belum dapat diproses.');
+      setLogoutError(result.message || 'Unable to log out.');
       return;
     }
     closeMenu();
@@ -118,7 +118,7 @@ export default function Navbar() {
       <div className="rm-navbar__inner">
         <Logo className="rm-navbar__brand" onClick={closeMenu} />
 
-        <nav aria-label="Navigasi utama" className="rm-navbar__nav">
+        <nav aria-label="Main navigation" className="rm-navbar__nav">
           {navLinks.map((link) => {
             const isActive = isLinkActive(link, route);
 
@@ -138,17 +138,17 @@ export default function Navbar() {
         <div className="rm-navbar__actions">
           {isAdmin ? (
             <>
-              <Link className="rm-navbar__admin-link" to="/admin/dashboard">Dashboard Admin</Link>
+              <Link className="rm-navbar__admin-link" to="/admin/dashboard">Admin Dashboard</Link>
               <button className="rm-navbar__admin-link rm-navbar__logout" onClick={handleAdminLogout} type="button">Logout</button>
             </>
           ) : isCustomer ? (
             <>
-              <Link className="rm-navbar__admin-link" to="/akun">Akun Saya</Link>
+              <Link className="rm-navbar__admin-link" to="/akun">My Account</Link>
               <button className="rm-navbar__admin-link rm-navbar__logout" onClick={handleCustomerLogout} type="button">Logout</button>
             </>
           ) : (
             <>
-              <Link className="rm-navbar__admin-link" to="/login">Login / Daftar</Link>
+              <Link className="rm-navbar__admin-link" to="/login">Log In / Register</Link>
               <Link className="rm-navbar__admin-link" to="/admin/login">Admin</Link>
             </>
           )}
@@ -159,26 +159,26 @@ export default function Navbar() {
             to={consultationPath}
             variant="outline"
           >
-            Konsultasi build
+            Discuss a Build
           </Button>
 
           <button
             aria-controls="rm-mobile-menu"
             aria-expanded={isOpen}
-            aria-label={isOpen ? 'Tutup menu' : 'Buka menu'}
+            aria-label={isOpen ? 'Close menu' : 'Open menu'}
             className="rm-navbar__menu-button"
             onClick={toggleMenu}
             ref={menuButtonRef}
             type="button"
           >
-            <span>{isOpen ? 'Tutup' : 'Menu'}</span>
+            <span>{isOpen ? 'Close' : 'Menu'}</span>
             <Icon name={isOpen ? 'close' : 'menu'} size={24} />
           </button>
         </div>
       </div>
 
       <div className="rm-navbar__panel" hidden={!isOpen} id="rm-mobile-menu">
-        <nav aria-label="Navigasi mobile" className="rm-navbar__panel-nav">
+        <nav aria-label="Mobile navigation" className="rm-navbar__panel-nav">
           {navLinks.map((link) => {
             const isActive = isLinkActive(link, route);
 
@@ -198,7 +198,7 @@ export default function Navbar() {
           {isAdmin ? (
             <>
               <Link className="rm-navbar__panel-link rm-navbar__admin-link-mobile" onClick={closeMenu} to="/admin/dashboard">
-                <span>Dashboard Admin</span><Icon name="arrow-up-right" size={16} />
+                <span>Admin Dashboard</span><Icon name="arrow-up-right" size={16} />
               </Link>
               <button className="rm-navbar__panel-link rm-navbar__admin-link-mobile rm-navbar__logout-mobile" onClick={handleAdminLogout} type="button">
                 <span>Logout</span><Icon name="arrow-up-right" size={16} />
@@ -207,7 +207,7 @@ export default function Navbar() {
           ) : isCustomer ? (
             <>
               <Link className="rm-navbar__panel-link rm-navbar__admin-link-mobile" onClick={closeMenu} to="/akun">
-                <span>Akun Saya</span><Icon name="arrow-up-right" size={16} />
+                <span>My Account</span><Icon name="arrow-up-right" size={16} />
               </Link>
               <button className="rm-navbar__panel-link rm-navbar__admin-link-mobile rm-navbar__logout-mobile" onClick={handleCustomerLogout} type="button">
                 <span>Logout</span><Icon name="arrow-up-right" size={16} />
@@ -216,10 +216,10 @@ export default function Navbar() {
           ) : (
             <>
               <Link className="rm-navbar__panel-link rm-navbar__admin-link-mobile" onClick={closeMenu} to="/login">
-                <span>Login / Daftar</span><Icon name="arrow-up-right" size={16} />
+                <span>Log In / Register</span><Icon name="arrow-up-right" size={16} />
               </Link>
               <Link className="rm-navbar__panel-link rm-navbar__admin-link-mobile" onClick={closeMenu} to="/admin/login">
-                <span>Login Admin</span><Icon name="arrow-up-right" size={16} />
+                <span>Admin Log In</span><Icon name="arrow-up-right" size={16} />
               </Link>
             </>
           )}
@@ -233,7 +233,7 @@ export default function Navbar() {
           to={consultationPath}
           variant="primary"
         >
-          Konsultasi build
+          Discuss a Build
         </Button>
       </div>
     </header>

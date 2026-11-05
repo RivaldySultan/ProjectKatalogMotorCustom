@@ -114,6 +114,12 @@
   color: var(--rm-text);
 }
 
+.rm-account__order-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
 .rm-account__form {
   display: grid;
   gap: 16px;

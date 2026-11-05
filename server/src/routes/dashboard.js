@@ -12,10 +12,10 @@ router.get("/summary", authenticateAdmin, (req, res) => {
       data: summary,
     });
   } catch (error) {
-    console.error("Gagal memuat ringkasan dashboard:", error);
+    console.error("Failed to load dashboard summary:", error);
     return res.status(500).json({
       success: false,
-      message: "Ringkasan dashboard belum dapat dimuat.",
+      message: "The dashboard summary could not be loaded.",
     });
   }
 });

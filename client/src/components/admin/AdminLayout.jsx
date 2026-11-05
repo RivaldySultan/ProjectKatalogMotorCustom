@@ -8,10 +8,10 @@ import '../../pages/AdminDashboardPage.css';
 
 const navigation = [
   { id: 'dashboard', index: '01', label: 'Dashboard', to: '/admin/dashboard' },
-  { id: 'catalog', index: '02', label: 'Katalog', to: '/admin/catalog' },
-  { id: 'purchases', index: '03', label: 'Pesanan Pembelian', to: '/admin/purchases' },
-  { id: 'orders', index: '04', label: 'Permintaan Konsultasi', to: '/admin/orders' },
-  { id: 'public', index: '05', label: 'Lihat Website Publik', to: '/' },
+  { id: 'catalog', index: '02', label: 'Catalog', to: '/admin/catalog' },
+  { id: 'purchases', index: '03', label: 'Purchase Orders', to: '/admin/purchases' },
+  { id: 'orders', index: '04', label: 'Consultation Requests', to: '/admin/orders' },
+  { id: 'public', index: '05', label: 'View Public Website', to: '/' },
 ];
 
 export default function AdminLayout({ active, children }) {
@@ -36,10 +36,10 @@ export default function AdminLayout({ active, children }) {
         <main className="rm-admin__session-state" id="main-content">
           <p aria-live="polite" role="status">
             {adminSession.status === 'checking' || adminSession.status === 'unknown'
-              ? 'Memeriksa sesi admin...'
+              ? 'Checking admin session...'
               : adminSession.status === 'unavailable'
-                ? 'Sesi admin belum dapat diverifikasi. Muat ulang halaman untuk mencoba kembali.'
-                : 'Mengalihkan ke halaman login admin...'}
+                ? 'The admin session could not be verified. Reload the page to try again.'
+                : 'Redirecting to the admin login page...'}
           </p>
         </main>
       </div>
@@ -49,18 +49,18 @@ export default function AdminLayout({ active, children }) {
   return (
     <div className="rm-admin">
       <button
-        aria-label={isMenuOpen ? 'Tutup navigasi admin' : 'Buka navigasi admin'}
+        aria-label={isMenuOpen ? 'Close admin navigation' : 'Open admin navigation'}
         aria-expanded={isMenuOpen}
         className="rm-admin__mobile-toggle"
         onClick={() => setIsMenuOpen((open) => !open)}
         type="button"
       >
         <span aria-hidden="true">{isMenuOpen ? '×' : '☰'}</span>
-        <span>{isMenuOpen ? 'Tutup menu' : 'Menu'}</span>
+        <span>{isMenuOpen ? 'Close menu' : 'Menu'}</span>
       </button>
       {isMenuOpen ? (
         <button
-          aria-label="Tutup menu navigasi"
+          aria-label="Close navigation menu"
           className="rm-admin__scrim"
           onClick={() => setIsMenuOpen(false)}
           type="button"
@@ -70,10 +70,10 @@ export default function AdminLayout({ active, children }) {
       <aside className={`rm-admin__sidebar${isMenuOpen ? ' is-open' : ''}`}>
         <div className="rm-admin__sidebar-brand">
           <Logo href="/admin/dashboard" />
-          <span className="rm-admin__workspace">RUANG KERJA</span>
+          <span className="rm-admin__workspace">WORKSPACE</span>
         </div>
 
-        <nav aria-label="Navigasi admin" className="rm-admin__navigation">
+        <nav aria-label="Admin navigation" className="rm-admin__navigation">
           {navigation.map((item) => (
             <Link
               aria-current={active === item.id ? 'page' : undefined}
@@ -101,14 +101,14 @@ export default function AdminLayout({ active, children }) {
 
       <main className="rm-admin__main" id="main-content" tabIndex={-1}>
         <header className="rm-admin__header">
-          <p>RUKA MOTORWORKS <span>/</span> RUANG KERJA</p>
+          <p>RUKA MOTORWORKS <span>/</span> WORKSPACE</p>
           <span>ADMINISTRATOR</span>
         </header>
         <div className="rm-admin__content">
           {children}
           <footer className="rm-admin__footer">
-            <span>MESIN LAMA. SUDUT PANDANG BARU.</span>
-            <span>© 2026 RUKA MOTORWORKS / RUANG ADMIN</span>
+            <span>OLD MACHINES. NEW PERSPECTIVES.</span>
+            <span>© 2026 RUKA MOTORWORKS / ADMIN WORKSPACE</span>
           </footer>
         </div>
       </main>

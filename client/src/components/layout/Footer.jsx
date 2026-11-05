@@ -5,16 +5,16 @@ import { getWhatsAppLink, WHATSAPP_MESSAGE } from '../../lib/whatsapp';
 import './Footer.css';
 
 const CATALOG_LINKS = [
-  { to: '/katalog', label: 'Semua build' },
+  { to: '/katalog', label: 'All Builds' },
   { to: '/katalog', label: 'Café racer / Thunder' },
   { to: '/katalog', label: 'Chopper / Scorpio' },
   { to: '/katalog', label: 'British style / Tiger' },
 ];
 
 const ABOUT_LINKS = [
-  { to: '/#tentang', label: 'Tentang Ruka' },
-  { to: '/#process', label: 'Proses custom' },
-  { to: '/#faq', label: 'Pertanyaan umum' },
+  { to: '/#tentang', label: 'About Ruka' },
+  { to: '/#process', label: 'Custom Process' },
+  { to: '/#faq', label: 'Frequently Asked Questions' },
 ];
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -27,15 +27,15 @@ export default function Footer({ year = CURRENT_YEAR }) {
           <div className="rm-footer__identity">
             <Logo />
             <p className="rm-footer__description">
-              Bengkel motor custom independen. Bentuk yang jujur, karakter yang
-              personal.
+              An independent custom motorcycle workshop. Honest form, personal
+              character.
             </p>
             <p className="rm-footer__meta">Bandung / Indonesia</p>
           </div>
 
           <nav aria-labelledby="rm-footer-katalog" className="rm-footer__column">
             <h2 className="rm-footer__title" id="rm-footer-katalog">
-              Jelajahi katalog
+              Explore the Catalog
             </h2>
             <ul className="rm-footer__list">
               {CATALOG_LINKS.map((link) => (
@@ -48,7 +48,7 @@ export default function Footer({ year = CURRENT_YEAR }) {
 
           <nav aria-labelledby="rm-footer-tentang" className="rm-footer__column">
             <h2 className="rm-footer__title" id="rm-footer-tentang">
-              Tentang bengkel
+              About the Workshop
             </h2>
             <ul className="rm-footer__list">
               {ABOUT_LINKS.map((link) => (
@@ -60,10 +60,10 @@ export default function Footer({ year = CURRENT_YEAR }) {
           </nav>
 
           <div className="rm-footer__column">
-            <h2 className="rm-footer__title">Kontak</h2>
+            <h2 className="rm-footer__title">Contact</h2>
             <ul className="rm-footer__list">
-              <li>Bandung, Jawa Barat</li>
-              <li>Kunjungan dengan janji temu</li>
+              <li>Bandung, West Java</li>
+              <li>Visits by appointment</li>
               <li>
                 <a
                   href={getWhatsAppLink(WHATSAPP_MESSAGE)}
@@ -82,7 +82,7 @@ export default function Footer({ year = CURRENT_YEAR }) {
           <p className="rm-footer__wordmark">RUKA MOTORWORKS</p>
           <div className="rm-footer__closing">
             <p className="rm-footer__slogan">
-              Mesin lama. Sudut pandang baru.
+              Old machines. New perspectives.
             </p>
             <p className="rm-footer__copyright">
               © {year} RUKA Motorworks

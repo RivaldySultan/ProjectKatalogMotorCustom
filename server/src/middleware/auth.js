@@ -9,7 +9,7 @@ export const authenticateToken = (req, res, next) => {
   if (!isJwtSecretConfigured) {
     return res.status(503).json({
       success: false,
-      message: "Autentikasi belum dikonfigurasi. Atur JWT_SECRET minimal 32 byte.",
+      message: "Authentication is not configured. Set JWT_SECRET to at least 32 bytes.",
     });
   }
 
@@ -27,7 +27,7 @@ export const authenticateToken = (req, res, next) => {
     if (err) {
       return res.status(403).json({
         success: false,
-        message: "Token tidak valid atau telah kedaluwarsa.",
+        message: "The token is invalid or has expired.",
       });
     }
     req.user = user;
@@ -41,7 +41,7 @@ export const authenticateAdmin = (req, res, next) => {
     if (role !== "admin" || typeof sub !== "string" || !email) {
       return res.status(403).json({
         success: false,
-        message: "Akses khusus admin diperlukan.",
+        message: "Admin access is required.",
       });
     }
 
@@ -50,17 +50,17 @@ export const authenticateAdmin = (req, res, next) => {
       if (!admin || admin.isActive !== 1 || admin.email !== email) {
         return res.status(403).json({
           success: false,
-          message: "Akun admin tidak aktif atau tidak memiliki akses.",
+          message: "The admin account is inactive or does not have access.",
         });
       }
 
       req.admin = admin;
       return next();
     } catch (error) {
-      console.error("Gagal memverifikasi akun admin:", error);
+      console.error("Failed to verify admin account:", error);
       return res.status(500).json({
         success: false,
-        message: "Akun admin belum dapat diverifikasi.",
+        message: "The admin account could not be verified.",
       });
     }
   });

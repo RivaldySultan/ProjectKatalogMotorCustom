@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { db } from "../db/db.js";
@@ -25,23 +25,36 @@ function normalizePhone(value) {
   return /^\d{10,15}$/.test(international) ? international : "";
 }
 
+function hashCustomerPassword(password) {
+  const digest = createHash("sha256").update(password, "utf8").digest("hex");
+  return bcrypt.hash(digest, 12).then((hash) => `sha256$${hash}`);
+}
+
+function verifyCustomerPassword(password, passwordHash) {
+  if (passwordHash.startsWith("sha256$")) {
+    const digest = createHash("sha256").update(password, "utf8").digest("hex");
+    return bcrypt.compare(digest, passwordHash.slice("sha256$".length));
+  }
+  return bcrypt.compare(password, passwordHash);
+}
+
 function validateProfile({ fullName, email, phone }) {
   if (typeof fullName !== "string" || fullName.trim().length < 2 || fullName.trim().length > 120) {
-    return "Nama lengkap wajib diisi (2-120 karakter).";
+    return "Full name is required (2–120 characters).";
   }
   if (
     typeof email !== "string"
     || email.trim().length > 254
     || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   ) {
-    return "Alamat email tidak valid.";
+    return "Invalid email address.";
   }
   if (
     typeof phone !== "string"
     || !/^[+\d\s().-]{8,24}$/.test(phone.trim())
     || !normalizePhone(phone)
   ) {
-    return "Nomor WhatsApp tidak valid.";
+    return "Invalid WhatsApp number.";
   }
   return "";
 }
@@ -92,31 +105,22 @@ router.post("/register", async (req, res) => {
   const body = req.body || {};
   const validationError = validateProfile(body);
   if (validationError) return res.status(400).json({ success: false, message: validationError });
-  if (typeof body.password !== "string" || body.password.length < 12 || Buffer.byteLength(body.password, "utf8") > 72) {
-    return res.status(400).json({
-      success: false,
-      message: "Kata sandi harus minimal 12 karakter dan maksimal 72 byte.",
-    });
-  }
-  if (!/[a-z]/.test(body.password) || !/[A-Z]/.test(body.password) || !/\d/.test(body.password)) {
-    return res.status(400).json({
-      success: false,
-      message: "Kata sandi harus mengandung huruf kecil, huruf besar, dan angka.",
-    });
+  if (typeof body.password !== "string" || !body.password) {
+    return res.status(400).json({ success: false, message: "Password is required." });
   }
   if (body.password !== body.confirmPassword) {
-    return res.status(400).json({ success: false, message: "Konfirmasi kata sandi tidak cocok." });
+    return res.status(400).json({ success: false, message: "Password confirmation does not match." });
   }
   if (body.privacyConsent !== true) {
-    return res.status(400).json({ success: false, message: "Persetujuan privasi wajib diberikan." });
+    return res.status(400).json({ success: false, message: "Privacy consent is required." });
   }
   if (!JWT_SECRET || Buffer.byteLength(JWT_SECRET, "utf8") < 32) {
-    return res.status(503).json({ success: false, message: "Autentikasi belum dikonfigurasi dengan aman." });
+    return res.status(503).json({ success: false, message: "Authentication has not been securely configured." });
   }
 
   const email = normalizeEmail(body.email);
   if (db.getAdminByEmail(email) || db.getCustomerByEmail(email)) {
-    return res.status(409).json({ success: false, message: "Email tersebut sudah digunakan." });
+    return res.status(409).json({ success: false, message: "This email address is already in use." });
   }
 
   try {
@@ -125,7 +129,7 @@ router.post("/register", async (req, res) => {
       fullName: body.fullName.trim(),
       email,
       phone: normalizePhone(body.phone),
-      passwordHash: await bcrypt.hash(body.password, 12),
+      passwordHash: await hashCustomerPassword(body.password),
     });
     const session = createCustomerToken(customer);
     setCustomerCookie(res, session.token);
@@ -135,28 +139,28 @@ router.post("/register", async (req, res) => {
     });
   } catch (error) {
     if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
-      return res.status(409).json({ success: false, message: "Email tersebut sudah digunakan." });
+      return res.status(409).json({ success: false, message: "This email address is already in use." });
     }
-    console.error("Gagal membuat akun pelanggan:", error);
-    return res.status(500).json({ success: false, message: "Akun pelanggan belum dapat dibuat." });
+    console.error("Failed to create customer account:", error);
+    return res.status(500).json({ success: false, message: "The customer account could not be created." });
   }
 });
 
 router.post("/login", async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const password = req.body?.password;
-  if (!email || typeof password !== "string" || !password || Buffer.byteLength(password, "utf8") > 72) {
-    return res.status(400).json({ success: false, message: "Email dan kata sandi wajib diisi." });
+  if (!email || typeof password !== "string" || !password) {
+    return res.status(400).json({ success: false, message: "Email and password are required." });
   }
   if (!JWT_SECRET || Buffer.byteLength(JWT_SECRET, "utf8") < 32) {
-    return res.status(503).json({ success: false, message: "Autentikasi belum dikonfigurasi dengan aman." });
+    return res.status(503).json({ success: false, message: "Authentication has not been securely configured." });
   }
   const customer = db.getCustomerByEmail(email);
   const validPassword = customer?.isActive === 1
-    ? await bcrypt.compare(password, customer.passwordHash)
+    ? await verifyCustomerPassword(password, customer.passwordHash)
     : false;
   if (!validPassword) {
-    return res.status(401).json({ success: false, message: "Email atau kata sandi tidak cocok." });
+    return res.status(401).json({ success: false, message: "Incorrect email or password." });
   }
   const session = createCustomerToken(customer);
   setCustomerCookie(res, session.token);
@@ -177,7 +181,7 @@ router.patch("/me", authenticateCustomer, (req, res) => {
   const email = normalizeEmail(body.email);
   const existing = db.getCustomerByEmail(email);
   if (db.getAdminByEmail(email) || (existing && existing.id !== req.customer.id)) {
-    return res.status(409).json({ success: false, message: "Email tersebut sudah digunakan." });
+    return res.status(409).json({ success: false, message: "This email address is already in use." });
   }
   try {
     const customer = db.updateCustomerProfile(req.customer.id, {
@@ -185,14 +189,14 @@ router.patch("/me", authenticateCustomer, (req, res) => {
       email,
       phone: normalizePhone(body.phone),
     });
-    if (!customer) return res.status(404).json({ success: false, message: "Akun pelanggan tidak ditemukan." });
+    if (!customer) return res.status(404).json({ success: false, message: "Customer account not found." });
     return res.json({ success: true, data: safeProfile(customer) });
   } catch (error) {
     if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
-      return res.status(409).json({ success: false, message: "Email tersebut sudah digunakan." });
+      return res.status(409).json({ success: false, message: "This email address is already in use." });
     }
-    console.error("Gagal memperbarui profil pelanggan:", error);
-    return res.status(500).json({ success: false, message: "Profil belum dapat diperbarui." });
+    console.error("Failed to update customer profile:", error);
+    return res.status(500).json({ success: false, message: "The profile could not be updated." });
   }
 });
 
@@ -218,11 +222,12 @@ router.get("/orders", authenticateCustomer, (req, res) => {
     "expired",
     "processing",
     "ready",
+    "delivered",
     "completed",
     "cancelled",
   ];
   if (status && !statuses.includes(status)) {
-    return res.status(400).json({ success: false, message: "Filter status pesanan tidak valid." });
+    return res.status(400).json({ success: false, message: "Invalid order status filter." });
   }
   const result = db.getCustomerPurchaseOrders(req.customer.id, { status, sort, page, pageSize });
   return res.json({ success: true, data: result });
@@ -238,14 +243,33 @@ function withPaymentInstructions(order) {
 
 router.get("/orders/:id", authenticateCustomer, (req, res) => {
   const order = db.getCustomerPurchaseOrderById(req.customer.id, req.params.id);
-  if (!order) return res.status(404).json({ success: false, message: "Pesanan tidak ditemukan." });
+  if (!order) return res.status(404).json({ success: false, message: "Order not found." });
   return res.json({ success: true, data: withPaymentInstructions(order) });
+});
+
+router.post("/orders/:id/confirm-received", authenticateCustomer, (req, res) => {
+  if (!db.getCustomerPurchaseOrderById(req.customer.id, req.params.id)) {
+    return res.status(404).json({ success: false, message: "Order not found." });
+  }
+  try {
+    const order = db.confirmCustomerPurchaseReceived(req.customer.id, req.params.id);
+    if (!order) {
+      return res.status(409).json({
+        success: false,
+        message: "Only paid orders that are ready for pickup or have arrived at the delivery destination can be confirmed as received.",
+      });
+    }
+    return res.json({ success: true, data: order });
+  } catch (error) {
+    console.error("Failed to confirm customer order receipt:", error);
+    return res.status(500).json({ success: false, message: "Order receipt could not be confirmed." });
+  }
 });
 
 router.get("/orders/:id/proofs/:proofId", authenticateCustomer, (req, res) => {
   const proofId = req.params.proofId === "current" ? "" : req.params.proofId;
   const filename = db.getCustomerPaymentProof(req.customer.id, req.params.id, proofId);
-  if (!filename) return res.status(404).json({ success: false, message: "Bukti pembayaran tidak ditemukan." });
+  if (!filename) return res.status(404).json({ success: false, message: "Payment proof not found." });
   const proofDirectory = path.resolve(
     process.env.PAYMENT_PROOF_UPLOAD_DIR
       || fileURLToPath(new URL("../../uploads/payment-proofs/", import.meta.url)),
@@ -254,8 +278,8 @@ router.get("/orders/:id/proofs/:proofId", authenticateCustomer, (req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   return res.sendFile(path.basename(filename), { root: proofDirectory, dotfiles: "deny" }, (error) => {
     if (error && !res.headersSent) {
-      console.error("Gagal menyajikan bukti pembayaran pelanggan:", error);
-      res.status(404).json({ success: false, message: "Bukti pembayaran tidak dapat dibuka." });
+      console.error("Failed to serve customer payment proof:", error);
+      res.status(404).json({ success: false, message: "Payment proof could not be opened." });
     }
   });
 });
@@ -266,13 +290,13 @@ router.post("/claims/:id", authenticateCustomer, (req, res) => {
     !/^[a-f0-9]{64}$/i.test(accessToken)
     || !db.verifyPurchaseAccess(req.params.id, accessToken)
   ) {
-    return res.status(404).json({ success: false, message: "Pesanan tidak ditemukan atau token akses tidak valid." });
+    return res.status(404).json({ success: false, message: "Order not found or access token is invalid." });
   }
   const order = db.claimGuestPurchaseOrder(req.params.id, req.customer.id);
   if (!order) {
     return res.status(409).json({
       success: false,
-      message: "Pesanan tidak dapat ditautkan. Pastikan email dan WhatsApp cocok dengan akun, atau pesanan sudah ditautkan.",
+      message: "The order could not be linked. Make sure the email address and WhatsApp number match the account, or that the order has not already been linked.",
     });
   }
   return res.json({ success: true, data: order });

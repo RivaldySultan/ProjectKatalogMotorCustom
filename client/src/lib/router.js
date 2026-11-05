@@ -8,7 +8,7 @@ export function getConsultationPath(productId = 'prod_1') {
 }
 
 function getLocation() {
-  return `${window.location.pathname}${window.location.hash}`;
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
 
 function subscribe(callback) {
@@ -25,7 +25,7 @@ function subscribe(callback) {
 
 export function navigate(to) {
   const url = new URL(to, window.location.origin);
-  const target = `${url.pathname}${url.hash}`;
+  const target = `${url.pathname}${url.search}${url.hash}`;
   const current = getLocation();
 
   if (target === current) {

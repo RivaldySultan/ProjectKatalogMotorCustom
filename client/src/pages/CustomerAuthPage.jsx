@@ -21,7 +21,7 @@ export default function CustomerAuthPage({ mode }) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  usePageTitle(`${isRegister ? 'Buat Akun' : 'Login Pelanggan'} — RUKA Motorworks`);
+  usePageTitle(`${isRegister ? 'Create Account' : 'Customer Login'} — RUKA Motorworks`);
 
   const setField = (field, value) => {
     setValues((previous) => ({ ...previous, [field]: value }));
@@ -32,7 +32,7 @@ export default function CustomerAuthPage({ mode }) {
     event.preventDefault();
     setError('');
     if (isRegister && values.password !== values.confirmPassword) {
-      setError('Konfirmasi kata sandi tidak cocok.');
+      setError('Password confirmation does not match.');
       return;
     }
 
@@ -46,7 +46,7 @@ export default function CustomerAuthPage({ mode }) {
     });
     setSubmitting(false);
     if (!result.ok) {
-      setError(result.message || 'Akun belum dapat diproses.');
+      setError(result.message || 'Your account could not be processed.');
       return;
     }
     establishCustomerSession(result.data);
@@ -57,20 +57,20 @@ export default function CustomerAuthPage({ mode }) {
   return (
     <main className="rm-customer-auth rm-container" id="main-content" tabIndex={-1}>
       <header className="rm-customer-auth__heading">
-        <p className="rm-eyebrow">RUANG PELANGGAN / RUKA MOTORWORKS</p>
-        <h1>{isRegister ? 'BUAT AKUN PELANGGAN' : 'LOGIN PELANGGAN'}</h1>
-        <p>{isRegister ? 'Simpan dan pantau riwayat pembelian Anda.' : 'Masuk untuk melihat pesanan dan informasi akun Anda.'}</p>
+        <p className="rm-eyebrow">CUSTOMER PORTAL / RUKA MOTORWORKS</p>
+        <h1>{isRegister ? 'CREATE CUSTOMER ACCOUNT' : 'CUSTOMER LOGIN'}</h1>
+        <p>{isRegister ? 'Save and track your purchase history.' : 'Log in to view your orders and account information.'}</p>
       </header>
 
       <form className="rm-customer-auth__form" onSubmit={submit}>
         {isRegister ? (
           <>
             <label>
-              <span>Nama lengkap</span>
+              <span>Full name</span>
               <input autoComplete="name" maxLength={120} onChange={(event) => setField('fullName', event.target.value)} required value={values.fullName} />
             </label>
             <label>
-              <span>Nomor WhatsApp</span>
+              <span>WhatsApp number</span>
               <input autoComplete="tel" maxLength={24} onChange={(event) => setField('phone', event.target.value)} required type="tel" value={values.phone} />
             </label>
           </>
@@ -80,33 +80,33 @@ export default function CustomerAuthPage({ mode }) {
           <input autoComplete="email" maxLength={254} onChange={(event) => setField('email', event.target.value)} required type="email" value={values.email} />
         </label>
         <label>
-          <span>Kata sandi</span>
+          <span>Password</span>
           <span className="rm-customer-auth__password">
             <input autoComplete={isRegister ? 'new-password' : 'current-password'} onChange={(event) => setField('password', event.target.value)} required type={showPassword ? 'text' : 'password'} value={values.password} />
-            <button onClick={() => setShowPassword((visible) => !visible)} type="button">{showPassword ? 'Sembunyikan' : 'Tampilkan'}</button>
+            <button onClick={() => setShowPassword((visible) => !visible)} type="button">{showPassword ? 'Hide' : 'Show'}</button>
           </span>
         </label>
         {isRegister ? (
           <>
             <label>
-              <span>Konfirmasi kata sandi</span>
+              <span>Confirm password</span>
               <input autoComplete="new-password" onChange={(event) => setField('confirmPassword', event.target.value)} required type={showPassword ? 'text' : 'password'} value={values.confirmPassword} />
             </label>
             <label className="rm-customer-auth__consent">
               <input checked={values.privacyConsent} onChange={(event) => setField('privacyConsent', event.target.checked)} required type="checkbox" />
-              <span>Saya menyetujui data akun digunakan untuk mengelola pesanan dan layanan pelanggan.</span>
+              <span>I agree to the use of my account data to manage orders and customer service.</span>
             </label>
           </>
         ) : null}
         {error ? <p className="rm-customer-auth__error" role="alert">{error}</p> : null}
         <button className="rm-button rm-button--primary" disabled={submitting} type="submit">
-          {submitting ? 'Memproses...' : isRegister ? 'Buat akun' : 'Login'}
+          {submitting ? 'Processing...' : isRegister ? 'Create account' : 'Log in'}
         </button>
         <p className="rm-customer-auth__switch">
-          {isRegister ? 'Sudah punya akun?' : 'Belum punya akun?'}{' '}
-          <Link to={isRegister ? '/login' : '/register'}>{isRegister ? 'Login' : 'Daftar pelanggan'}</Link>
+          {isRegister ? 'Already have an account?' : 'Do not have an account yet?'}{' '}
+          <Link to={isRegister ? '/login' : '/register'}>{isRegister ? 'Log In' : 'Register'}</Link>
         </p>
-        <p className="rm-customer-auth__guest">Anda tetap dapat memesan tanpa membuat akun. Pesanan tamu menggunakan tautan pelacakan khusus.</p>
+        <p className="rm-customer-auth__guest">Create a customer account to place a direct order and track your build progress.</p>
       </form>
     </main>
   );

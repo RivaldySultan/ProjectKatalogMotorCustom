@@ -15,7 +15,7 @@ import Link from '../components/ui/Link';
 import './CatalogPage.css';
 
 export default function CatalogPage({ products, isLoading, error }) {
-  usePageTitle('Katalog Motor — RUKA Motorworks');
+  usePageTitle('Motorcycle Catalog — RUKA Motorworks');
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [sort, setSort] = useState('featured');
@@ -71,22 +71,22 @@ export default function CatalogPage({ products, isLoading, error }) {
         <div className="rm-container rm-page-intro__inner">
           <nav aria-label="Breadcrumb" className="rm-catalog__breadcrumb">
             <ol>
-              <li><Link to="/">Beranda</Link></li>
+              <li><Link to="/">Home</Link></li>
               <li aria-hidden="true">/</li>
-              <li aria-current="page">Katalog motor</li>
+              <li aria-current="page">Motorcycle Catalog</li>
             </ol>
           </nav>
 
-          <p className="rm-eyebrow rm-page-intro__eyebrow">01 / Seri Ruka</p>
+          <p className="rm-eyebrow rm-page-intro__eyebrow">01 / Ruka Series</p>
 
           <div className="rm-page-intro__heading">
-            <h1>Tiga build.<br />Tiga karakter.</h1>
+            <h1>Three builds.<br />Three characters.</h1>
           </div>
           <div className="rm-page-intro__aside">
-            <p>Mesin yang kamu kenal. Karakter yang sepenuhnya baru. Pilih titik awal untuk cerita motormu.</p>
+            <p>Engines you know. A character that is entirely new. Choose a starting point for your motorcycle story.</p>
             <p className="rm-page-intro__indicator">
               <span aria-hidden="true" />
-              {isLoading ? 'Memuat katalog...' : `${products.length} build / dibuat sesuai pesanan`}
+              {isLoading ? 'Loading catalog...' : `${products.length} builds / made to order`}
             </p>
           </div>
         </div>
@@ -97,10 +97,10 @@ export default function CatalogPage({ products, isLoading, error }) {
           <div className="rm-catalog__controls">
             <label className="rm-search">
               <Icon name="search" size={18} />
-              <span className="rm-visually-hidden">Cari nama atau basis motor</span>
+              <span className="rm-visually-hidden">Search by build name or donor motorcycle</span>
               <input
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Cari nama atau basis motor"
+                placeholder="Search by build name or donor motorcycle"
                 type="search"
                 value={query}
               />
@@ -115,20 +115,20 @@ export default function CatalogPage({ products, isLoading, error }) {
                 type="button"
               >
                 <span className="rm-filter-toggle__selection">
-                  {selectedCategory.id === 'all' ? 'Semua gaya' : selectedCategory.label}
+                  {selectedCategory.id === 'all' ? 'All styles' : selectedCategory.label}
                   <span aria-hidden="true"> / {String(products.length).padStart(2, '0')}</span>
                 </span>
                 <span>Filter</span>
                 <Icon name="sliders" size={16} />
               </button>
               <div
-                aria-label="Filter kategori motor"
+                aria-label="Filter motorcycle categories"
                 className={`rm-filter${filtersOpen ? ' is-open' : ''}`}
                 id="rm-catalog-filters"
                 role="group"
               >
                 {categoryOptions.map((category) => {
-                  const label = category.id === 'all' ? 'Semua gaya' : category.label;
+                  const label = category.id === 'all' ? 'All styles' : category.label;
 
                   return (
                     <button
@@ -153,20 +153,20 @@ export default function CatalogPage({ products, isLoading, error }) {
           <div className="rm-catalog__meta">
             <p aria-live="polite" className="rm-meta">
               {isLoading
-                ? 'Memuat katalog...'
-                : `Menampilkan ${visibleProducts.length} dari ${products.length} build`}
+                ? 'Loading catalog...'
+                : `Showing ${visibleProducts.length} of ${products.length} builds`}
             </p>
             <label className="rm-sort">
-              <span className="rm-meta">Urutkan</span>
+              <span className="rm-meta">Sort by</span>
               <span className="rm-sort__control">
                 <select
                   onChange={(event) => setSort(event.target.value)}
                   value={sort}
                 >
-                  <option value="featured">Pilihan Ruka</option>
-                  <option value="newest">Terbaru</option>
-                  <option value="price-asc">Harga terendah</option>
-                  <option value="price-desc">Harga tertinggi</option>
+                  <option value="featured">Ruka's Picks</option>
+                  <option value="newest">Newest</option>
+                  <option value="price-asc">Lowest price</option>
+                  <option value="price-desc">Highest price</option>
                 </select>
                 <Icon name="chevron-down" size={14} />
               </span>
@@ -181,18 +181,18 @@ export default function CatalogPage({ products, isLoading, error }) {
             </div>
           ) : isLoading ? (
             <div aria-live="polite" className="rm-catalog__empty">
-              <p className="rm-meta">Memuat katalog</p>
-              <h2 className="rm-h2">Menyiapkan pilihan build...</h2>
+              <p className="rm-meta">Loading catalog</p>
+              <h2 className="rm-h2">Preparing build selections...</h2>
             </div>
           ) : error ? (
             <div aria-live="assertive" className="rm-catalog__empty" role="alert">
-              <p className="rm-meta">Katalog tidak tersedia</p>
+              <p className="rm-meta">Catalog unavailable</p>
               <h2 className="rm-h2">{error}</h2>
             </div>
           ) : (
             <div aria-live="polite" className="rm-catalog__empty">
-              <p className="rm-meta">Tidak ada hasil</p>
-              <h2 className="rm-h2">Coba kata kunci atau kategori lain.</h2>
+              <p className="rm-meta">No results</p>
+              <h2 className="rm-h2">Try another keyword or category.</h2>
               <button className="rm-button rm-button--outline" onClick={resetFilters} type="button">
                 <span>Reset filter</span>
                 <span aria-hidden="true" className="rm-button__icon">
@@ -203,9 +203,9 @@ export default function CatalogPage({ products, isLoading, error }) {
           )}
 
           <p className="rm-catalog__note">
-            Katalog ini adalah titik awal desain, bukan stok siap kirim.
-            Spesifikasi akhir, biaya, dan waktu pengerjaan dibahas sesuai
-            motor donor serta kebutuhanmu.
+            This catalog is a starting point for design, not ready-to-ship inventory.
+            Final specifications, cost, and build time are discussed based on
+            the donor motorcycle and your needs.
           </p>
         </div>
       </section>
@@ -213,15 +213,15 @@ export default function CatalogPage({ products, isLoading, error }) {
       <section className="rm-consult-bar">
         <div className="rm-container rm-consult-bar__inner">
           <div className="rm-consult-bar__copy">
-            <h2 className="rm-h2">Basis sama. Cerita berbeda.</h2>
-            <p>Warna, jok, dan posisi berkendara. Mari bentuk detail yang terasa milikmu.</p>
+            <h2 className="rm-h2">Same basis. A different story.</h2>
+            <p>Color, seat, and riding position. Let's shape the details to make it yours.</p>
           </div>
           <Button
             icon={<Icon name="arrow-up-right" size={18} />}
             to={getConsultationPath(products[0]?.id)}
             variant="primary"
           >
-            Bicarakan idemu
+            Discuss Your Idea
           </Button>
         </div>
       </section>

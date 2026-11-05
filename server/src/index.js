@@ -34,13 +34,13 @@ const uploadPath = path.join(__dirname, `../uploads`);
 app.use("/uploads/consultations", (req, res) => {
   res.status(404).json({
     success: false,
-    message: "Foto konsultasi hanya tersedia melalui akses admin.",
+    message: "Consultation photos are only available to admins.",
   });
 });
 app.use("/uploads/payment-proofs", (req, res) => {
   res.status(404).json({
     success: false,
-    message: "Bukti pembayaran hanya tersedia melalui akses admin.",
+    message: "Payment proofs are only available to admins.",
   });
 });
 app.use("/uploads", express.static(uploadPath));

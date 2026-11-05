@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Menjalankan API dan client Vite dalam satu terminal dengan log bergabung.
+ * Runs the API and Vite client in one terminal with combined logs.
  *
  *   npm run dev
  *
@@ -76,15 +76,15 @@ function start(name, command, args, options) {
   pipeLines(child.stderr, name);
 
   child.on('error', (error) => {
-    log(name, `Gagal menjalankan proses: ${error.message}`);
+    log(name, `Failed to start process: ${error.message}`);
     shutdown(1);
   });
 
   child.on('exit', (code, signal) => {
     if (shuttingDown) return;
 
-    const reason = signal ? `sinyal ${signal}` : `kode ${code}`;
-    log(name, `Proses berhenti (${reason}). Menghentikan proses lain...`);
+    const reason = signal ? `signal ${signal}` : `exit code ${code}`;
+    log(name, `Process exited (${reason}). Stopping the other process...`);
     shutdown(code ?? 1);
   });
 
@@ -107,7 +107,7 @@ function killTree(entry) {
   try {
     child.kill('SIGTERM');
   } catch {
-    // Proses mungkin sudah berhenti.
+    // The process may already have exited.
   }
 }
 
@@ -115,7 +115,7 @@ function shutdown(code = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
 
-  log('dev', 'Menghentikan API dan client...');
+  log('dev', 'Stopping the API and client...');
   children.forEach(killTree);
 
   setTimeout(() => {
@@ -129,11 +129,11 @@ process.on('SIGTERM', () => shutdown(0));
 process.stdout.write(
   [
     '',
-    paint('1', 'RUKA Motorworks — mode pengembangan'),
+    paint('1', 'RUKA Motorworks — development mode'),
     `  API    ${paint('36', 'http://localhost:5000')}`,
     `  Client ${paint('35', 'http://localhost:5173')}`,
-    paint('2', '  Log API dan client tampil bergantian di terminal ini.'),
-    paint('2', '  Tekan Ctrl+C untuk berhenti.'),
+    paint('2', '  API and client logs are combined in this terminal.'),
+    paint('2', '  Press Ctrl+C to stop.'),
     '',
   ].join('\n'),
 );

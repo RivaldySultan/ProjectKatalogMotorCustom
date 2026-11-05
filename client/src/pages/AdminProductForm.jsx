@@ -34,18 +34,18 @@ const EMPTY_PRODUCT = {
 };
 
 const FIELDS = [
-  ['name', 'Nama build'],
-  ['buildName', 'Nama seri'],
-  ['basis', 'Basis motor'],
-  ['categoryId', 'Kategori gaya'],
-  ['price', 'Harga build (Rupiah)'],
-  ['description', 'Deskripsi build'],
-  ['engine', 'Mesin'],
-  ['transmission', 'Transmisi'],
-  ['cockpit', 'Kokpit'],
-  ['finishing', 'Jok dan finishing'],
-  ['specNotes', 'Catatan spesifikasi'],
-  ['imageAlt', 'Teks alternatif gambar'],
+  ['name', 'Build name'],
+  ['buildName', 'Series name'],
+  ['basis', 'Motorcycle basis'],
+  ['categoryId', 'Style category'],
+  ['price', 'Build price (Rupiah)'],
+  ['description', 'Build description'],
+  ['engine', 'Engine'],
+  ['transmission', 'Transmission'],
+  ['cockpit', 'Cockpit'],
+  ['finishing', 'Seat and finish'],
+  ['specNotes', 'Specification notes'],
+  ['imageAlt', 'Image alt text'],
 ];
 
 export default function AdminProductForm({ mode, id }) {
@@ -61,7 +61,7 @@ export default function AdminProductForm({ mode, id }) {
   const [previewUrl, setPreviewUrl] = useState('');
   const previewUrlRef = useRef('');
 
-  usePageTitle(`${isEditing ? 'Edit Motor' : 'Tambah Motor'} — RUKA Motorworks`);
+  usePageTitle(`${isEditing ? 'Edit Motorcycle' : 'Add Motorcycle'} — RUKA Motorworks`);
 
   useEffect(() => {
     let active = true;
@@ -70,7 +70,7 @@ export default function AdminProductForm({ mode, id }) {
         const categoryResponse = await fetch('/api/categories');
         const categoryResult = await categoryResponse.json();
         if (!categoryResponse.ok || !categoryResult.success || !Array.isArray(categoryResult.data)) {
-          throw new Error(categoryResult.message || 'Kategori gaya belum dapat dimuat.');
+          throw new Error(categoryResult.message || 'Style categories could not be loaded.');
         }
 
         let currentProduct = null;
@@ -104,8 +104,8 @@ export default function AdminProductForm({ mode, id }) {
         }
       } catch (loadError) {
         if (active) {
-          console.error('Gagal memuat data form motor:', loadError);
-          setError(loadError.message || 'Data form belum dapat dimuat.');
+          console.error('Failed to load motorcycle form data:', loadError);
+          setError(loadError.message || 'Form data could not be loaded.');
         }
       } finally {
         if (active) setIsLoading(false);
@@ -146,14 +146,14 @@ export default function AdminProductForm({ mode, id }) {
     }
 
     if (!['image/jpeg', 'image/png'].includes(selected.type)) {
-      setFileError('Pilih file JPG atau PNG.');
+      setFileError('Choose a JPG or PNG file.');
       event.target.value = '';
       setFile(null);
       setPreviewUrl('');
       return;
     }
     if (selected.size > 5 * 1024 * 1024) {
-      setFileError('Ukuran foto utama maksimal 5 MB.');
+      setFileError('The main photo must not exceed 5 MB.');
       event.target.value = '';
       setFile(null);
       setPreviewUrl('');
@@ -169,7 +169,7 @@ export default function AdminProductForm({ mode, id }) {
     event.preventDefault();
     setError('');
     if (!isEditing && !file) {
-      setFileError('Foto utama wajib diunggah saat membuat motor baru.');
+      setFileError('A main photo is required when adding a new motorcycle.');
       return;
     }
     if (fileError) return;
@@ -205,7 +205,7 @@ export default function AdminProductForm({ mode, id }) {
     }
   };
 
-  const title = isEditing ? 'EDIT MOTOR' : 'TAMBAH MOTOR BARU';
+  const title = isEditing ? 'EDIT MOTORCYCLE' : 'ADD MOTORCYCLE';
 
   return (
     <AdminLayout active="catalog">
@@ -214,39 +214,39 @@ export default function AdminProductForm({ mode, id }) {
           <nav aria-label="Breadcrumb" className="rm-admin-catalog__breadcrumb">
             <Link to="/admin/dashboard">Dashboard</Link>
             <span aria-hidden="true">/</span>
-            <Link to="/admin/catalog">Kelola Katalog</Link>
+            <Link to="/admin/catalog">Manage Catalog</Link>
             <span aria-hidden="true">/</span>
-            <span aria-current="page">{isEditing ? 'Edit motor' : 'Tambah motor'}</span>
+            <span aria-current="page">{isEditing ? 'Edit motorcycle' : 'Add motorcycle'}</span>
           </nav>
-          <p className="rm-admin-meta">KATALOG / {isEditing ? 'EDIT DATA' : 'BUILD BARU'}</p>
+          <p className="rm-admin-meta">CATALOG / {isEditing ? 'EDIT DETAILS' : 'NEW BUILD'}</p>
           <h1 id="rm-admin-form-title">{title}</h1>
           <p className="rm-admin__welcome">
             {isEditing
-              ? 'Perbarui informasi yang tersimpan di katalog publik.'
-              : 'Tambahkan build baru agar tampil di katalog publik.'}
+              ? 'Update the information shown in the public catalog.'
+              : 'Add a new build to the public catalog.'}
           </p>
         </div>
         <Link className="rm-admin__public-link" to="/">
-          Lihat Website Publik
+          View Public Website
           <Icon name="arrow-up-right" size={16} />
         </Link>
       </section>
 
       {isLoading ? (
-        <p aria-live="polite" className="rm-admin-catalog__state">Memuat data motor...</p>
+        <p aria-live="polite" className="rm-admin-catalog__state">Loading motorcycle data...</p>
       ) : error && !product && isEditing ? (
         <div className="rm-admin__error" role="alert">
           <p>{error}</p>
-          <Link to="/admin/catalog">Kembali ke katalog</Link>
+          <Link to="/admin/catalog">Back to catalog</Link>
         </div>
       ) : (
         <form className="rm-admin-form" onSubmit={handleSubmit}>
           {error ? <p className="rm-admin__error" role="alert">{error}</p> : null}
           <fieldset className="rm-admin-form__section">
-            <legend>INFORMASI UTAMA</legend>
+            <legend>MAIN INFORMATION</legend>
             <div className="rm-admin-form__grid">
               <label className="rm-admin-form__field">
-                <span>Nama build <b>*</b></span>
+                <span>Build name <b>*</b></span>
                 <input
                   autoComplete="off"
                   maxLength={120}
@@ -256,7 +256,7 @@ export default function AdminProductForm({ mode, id }) {
                 />
               </label>
               <label className="rm-admin-form__field">
-                <span>Nama seri <small>Opsional</small></span>
+                <span>Series name <small>Optional</small></span>
                 <input
                   maxLength={120}
                   onChange={(event) => setField('buildName', event.target.value)}
@@ -264,7 +264,7 @@ export default function AdminProductForm({ mode, id }) {
                 />
               </label>
               <label className="rm-admin-form__field">
-                <span>Basis motor <b>*</b></span>
+                <span>Motorcycle basis <b>*</b></span>
                 <input
                   maxLength={160}
                   onChange={(event) => setField('basis', event.target.value)}
@@ -273,7 +273,7 @@ export default function AdminProductForm({ mode, id }) {
                 />
               </label>
               <label className="rm-admin-form__field">
-                <span>Kategori gaya <b>*</b></span>
+                <span>Style category <b>*</b></span>
                 <select
                   onChange={(event) => setField('categoryId', event.target.value)}
                   required
@@ -285,7 +285,7 @@ export default function AdminProductForm({ mode, id }) {
                 </select>
               </label>
               <label className="rm-admin-form__field">
-                <span>Harga build (Rupiah) <b>*</b></span>
+                <span>Build price (Rupiah) <b>*</b></span>
                 <input
                   inputMode="numeric"
                   min="1"
@@ -297,7 +297,7 @@ export default function AdminProductForm({ mode, id }) {
                 />
               </label>
               <label className="rm-admin-form__field rm-admin-form__field--wide">
-                <span>Deskripsi build <b>*</b></span>
+                <span>Build description <b>*</b></span>
                 <textarea
                   maxLength={3000}
                   onChange={(event) => setField('description', event.target.value)}
@@ -310,21 +310,21 @@ export default function AdminProductForm({ mode, id }) {
           </fieldset>
 
           <fieldset className="rm-admin-form__section">
-            <legend>KETERSEDIAAN PEMBELIAN LANGSUNG</legend>
+            <legend>DIRECT PURCHASE AVAILABILITY</legend>
             <div className="rm-admin-form__grid">
               <label className="rm-admin-form__field">
-                <span>Jenis ketersediaan</span>
+                <span>Availability type</span>
                 <select
                   onChange={(event) => setField('purchaseType', event.target.value)}
                   value={values.purchaseType || 'consultation_only'}
                 >
-                  <option value="consultation_only">Konsultasi saja</option>
+                  <option value="consultation_only">Consultation only</option>
                   <option value="ready_stock">Ready stock</option>
-                  <option value="made_to_order">Made to order — spesifikasi tetap</option>
+                  <option value="made_to_order">Made to order — fixed specifications</option>
                 </select>
               </label>
               <label className="rm-admin-form__field rm-admin-form__field--checkbox">
-                <span>Aktifkan pembelian langsung</span>
+                <span>Enable direct purchase</span>
                 <input
                   checked={Boolean(values.purchaseEnabled)}
                   onChange={(event) => setField('purchaseEnabled', event.target.checked)}
@@ -332,19 +332,19 @@ export default function AdminProductForm({ mode, id }) {
                 />
               </label>
               <label className="rm-admin-form__field rm-admin-form__field--wide">
-                <span>Spesifikasi final <small>Wajib jika pembelian aktif</small></span>
+                <span>Final specifications <small>Required when purchase is enabled</small></span>
                 <textarea
                   maxLength={3000}
                   onChange={(event) => setField('fixedSpecifications', event.target.value)}
-                  placeholder={'Mesin: 250 cc\nTransmisi: 5 percepatan\nFinishing: Matte black'}
+                  placeholder={'Engine: 250 cc\nTransmission: 5-speed\nFinish: Matte black'}
                   rows={4}
                   value={values.fixedSpecifications || ''}
                 />
-                <small>Satu spesifikasi per baris, format Label: nilai. Ini menjadi snapshot pesanan.</small>
+                <small>One specification per line, in Label: value format. These become the order snapshot.</small>
               </label>
               {values.purchaseType === 'ready_stock' ? (
                 <label className="rm-admin-form__field">
-                  <span>Jumlah ready stock</span>
+                  <span>Ready stock quantity</span>
                   <input
                     max="10000"
                     min="0"
@@ -357,7 +357,7 @@ export default function AdminProductForm({ mode, id }) {
               ) : null}
               {values.purchaseType === 'made_to_order' ? (
                 <label className="rm-admin-form__field">
-                  <span>Estimasi pengerjaan (hari) <small>Opsional</small></span>
+                  <span>Estimated build time (days) <small>Optional</small></span>
                   <input
                     max="365"
                     min="1"
@@ -372,7 +372,7 @@ export default function AdminProductForm({ mode, id }) {
           </fieldset>
 
           <fieldset className="rm-admin-form__section">
-            <legend>SPESIFIKASI TEKNIS</legend>
+            <legend>TECHNICAL SPECIFICATIONS</legend>
             <div className="rm-admin-form__grid">
               {FIELDS.slice(6, 11).map(([field, label]) => (
                 <label className={`rm-admin-form__field${field === 'specNotes' ? ' rm-admin-form__field--wide' : ''}`} key={field}>
@@ -394,40 +394,40 @@ export default function AdminProductForm({ mode, id }) {
                 </label>
               ))}
               <label className="rm-admin-form__field">
-                <span>Status katalog</span>
+                <span>Catalog status</span>
                 <select
                   onChange={(event) => setField('stockStatus', event.target.value)}
                   value={values.stockStatus || 'Tersedia'}
                 >
-                  <option value="Tersedia">Tersedia</option>
-                  <option value="Habis">Habis</option>
+                  <option value="Tersedia">Available</option>
+                  <option value="Habis">Out of stock</option>
                 </select>
               </label>
             </div>
           </fieldset>
 
           <fieldset className="rm-admin-form__section">
-            <legend>GAMBAR MOTOR</legend>
+            <legend>MOTORCYCLE IMAGES</legend>
             {displayedImage ? (
               <div className="rm-admin-form__current-image">
-                <img alt={values.imageAlt || 'Foto utama motor saat ini'} src={displayedImage} />
-                <span>{file ? 'Pratinjau foto baru' : 'Foto utama saat ini'}</span>
+                <img alt={values.imageAlt || 'Current main motorcycle photo'} src={displayedImage} />
+                <span>{file ? 'New photo preview' : 'Current main photo'}</span>
               </div>
             ) : null}
             <div className="rm-admin-form__grid">
               <label className="rm-admin-form__field">
-                <span>Foto utama motor {isEditing ? <small>Ganti jika diperlukan</small> : <b>*</b>}</span>
+                <span>Main motorcycle photo {isEditing ? <small>Replace if needed</small> : <b>*</b>}</span>
                 <input
                   accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                   onChange={handleFileChange}
                   required={!isEditing}
                   type="file"
                 />
-                <small>JPG atau PNG, maksimal 5 MB.</small>
+                <small>JPG or PNG, up to 5 MB.</small>
                 {fileError ? <small className="rm-admin-form__error">{fileError}</small> : null}
               </label>
               <label className="rm-admin-form__field">
-                <span>Teks alternatif gambar <b>*</b></span>
+                <span>Image alt text <b>*</b></span>
                 <input
                   maxLength={180}
                   onChange={(event) => setField('imageAlt', event.target.value)}
@@ -439,9 +439,9 @@ export default function AdminProductForm({ mode, id }) {
           </fieldset>
 
           <div className="rm-admin-form__actions">
-            <Link className="rm-admin-button rm-admin-button--outline" to="/admin/catalog">Batal</Link>
+            <Link className="rm-admin-button rm-admin-button--outline" to="/admin/catalog">Cancel</Link>
             <button className="rm-admin-button rm-admin-button--primary" disabled={isSaving} type="submit">
-              {isSaving ? 'Menyimpan...' : isEditing ? 'Simpan Perubahan' : 'Simpan Motor'}
+              {isSaving ? 'Saving...' : isEditing ? 'Save Changes' : 'Save Motorcycle'}
             </button>
           </div>
         </form>

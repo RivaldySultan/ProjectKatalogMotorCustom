@@ -51,7 +51,7 @@ router.post("/login", async (req, res) => {
   if (!JWT_SECRET || Buffer.byteLength(JWT_SECRET, "utf8") < 32) {
     return res.status(500).json({
       success: false,
-      message: "JWT_SECRET belum dikonfigurasi dengan aman (minimal 32 byte).",
+      message: "JWT_SECRET has not been securely configured (at least 32 bytes are required).",
     });
   }
 

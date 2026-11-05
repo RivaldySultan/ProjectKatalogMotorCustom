@@ -73,7 +73,7 @@ export function clearAdminSession() {
 export async function adminRequest(url, options = {}) {
   const token = getAdminToken();
   if (!token) {
-    return { ok: false, unauthorized: true, message: 'Sesi admin tidak ditemukan.' };
+    return { ok: false, unauthorized: true, message: 'Admin session not found.' };
   }
 
   let response;
@@ -91,7 +91,7 @@ export async function adminRequest(url, options = {}) {
     return {
       ok: false,
       unauthorized: false,
-      message: 'Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi.',
+      message: 'Unable to connect to the server. Check your connection and try again.',
       error,
     };
   }
@@ -101,7 +101,7 @@ export async function adminRequest(url, options = {}) {
     return {
       ok: false,
       unauthorized: true,
-      message: result?.message || 'Sesi admin telah berakhir. Silakan masuk kembali.',
+      message: result?.message || 'Your admin session has expired. Please log in again.',
     };
   }
 
@@ -109,7 +109,7 @@ export async function adminRequest(url, options = {}) {
     return {
       ok: false,
       unauthorized: false,
-      message: result?.message || `Permintaan gagal (${response.status}).`,
+      message: result?.message || `Request failed (${response.status}).`,
     };
   }
 

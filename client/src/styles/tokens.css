@@ -1,12 +1,12 @@
 :root {
   /* ------------------------------------------------------------------
      RUKA MOTORWORKS — DESIGN TOKENS
-     Referensi: Panduan UI & Handoff (Figma), frame 33:4064.
-     Prefix --rm- dipakai agar tidak bertabrakan dengan variabel lama
-     di App.css selama migrasi bertahap.
+     Reference: UI Guide & Handoff (Figma), frame 33:4064.
+     Prefix --rm- avoids conflicts with legacy variables
+     in App.css during the gradual migration.
      ------------------------------------------------------------------ */
 
-  /* Warna inti — industrial */
+  /* Core colors — industrial */
   --rm-color-garage: #111111;
   --rm-color-panel: #1a1a1a;
   --rm-color-raised: #222222;
@@ -19,7 +19,7 @@
   --rm-color-error: #ef8d7e;
   --rm-color-disabled: #666666;
 
-  /* Warna editorial — section terang Beranda */
+  /* Editorial colors — light homepage section */
   --rm-color-paper: #f1ede4;
   --rm-color-paper-ink: #191a18;
   --rm-color-paper-muted: #696c62;
@@ -28,7 +28,7 @@
   --rm-color-cream: #faf7ef;
   --rm-color-olive: #b0b1a7;
 
-  /* Token semantik — tema industrial (default) */
+  /* Semantic tokens — industrial theme (default) */
   --rm-bg: var(--rm-color-garage);
   --rm-surface: var(--rm-color-panel);
   --rm-surface-raised: var(--rm-color-raised);
@@ -42,7 +42,7 @@
   --rm-danger: var(--rm-color-error);
   --rm-disabled: var(--rm-color-disabled);
 
-  /* Tipografi */
+  /* Typography */
   --rm-font-display: 'Oswald', 'Arial Narrow', Impact, sans-serif;
   --rm-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --rm-font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas,
@@ -60,7 +60,7 @@
   --rm-lh-display: 1.12;
   --rm-lh-body: 1.65;
 
-  /* Spacing — skala 8pt */
+  /* Spacing — 8pt scale */
   --rm-space-1: 4px;
   --rm-space-2: 8px;
   --rm-space-3: 16px;
@@ -78,7 +78,7 @@
   --rm-gutter: 24px;
   --rm-header-h: 92px;
 
-  /* Kontrol & motion */
+  /* Controls & motion */
   --rm-control-h: 48px;
   --rm-radius: 2px;
   --rm-border-w: 1px;
@@ -87,7 +87,7 @@
   --rm-z-skip: 999;
 }
 
-/* Tema editorial untuk section terang di Beranda */
+/* Editorial theme for light sections on the homepage */
 .theme-editorial {
   --rm-bg: var(--rm-color-paper);
   --rm-surface: var(--rm-color-paper-panel);

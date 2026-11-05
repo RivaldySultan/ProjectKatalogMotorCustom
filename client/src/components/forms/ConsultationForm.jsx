@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../ui/Icon';
+import { getWhatsAppLink } from '../../lib/whatsapp';
 import {
   formatRupiah,
   getActiveProducts,
@@ -35,30 +36,30 @@ function validateFields(fields, files) {
   const errors = {};
   const phone = fields.phone.trim().replace(/[()\s-]/g, '');
 
-  if (!fields.fullName.trim()) errors.fullName = 'Nama lengkap wajib diisi.';
-  else if (fields.fullName.trim().length > 100) errors.fullName = 'Nama maksimal 100 karakter.';
+  if (!fields.fullName.trim()) errors.fullName = 'Full name is required.';
+  else if (fields.fullName.trim().length > 100) errors.fullName = 'Name must be 100 characters or fewer.';
 
-  if (!phone) errors.phone = 'Nomor WhatsApp wajib diisi.';
+  if (!phone) errors.phone = 'WhatsApp number is required.';
   else if (!/^\+?\d{8,15}$/.test(phone)) {
-    errors.phone = 'Masukkan 8–15 digit; tanda + di depan boleh digunakan.';
+    errors.phone = 'Enter 8–15 digits; a leading + is optional.';
   }
 
   if (fields.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(fields.email.trim())) {
-    errors.email = 'Masukkan alamat email yang valid.';
+    errors.email = 'Enter a valid email address.';
   }
 
-  if (!fields.city.trim()) errors.city = 'Kota domisili wajib diisi.';
-  if (!fields.donorMotor) errors.donorMotor = 'Pilih status motor donor.';
+  if (!fields.city.trim()) errors.city = 'City is required.';
+  if (!fields.donorMotor) errors.donorMotor = 'Select your donor motorcycle status.';
   if (fields.donorMotor === 'other' && !fields.donorMotorOther.trim()) {
-    errors.donorMotorOther = 'Jelaskan motor donor yang digunakan.';
+    errors.donorMotorOther = 'Describe the donor motorcycle you plan to use.';
   }
-  if (!fields.budgetRange.trim()) errors.budgetRange = 'Kisaran anggaran wajib diisi.';
-  if (!fields.requirements.trim()) errors.requirements = 'Ceritakan kebutuhan build.';
+  if (!fields.budgetRange.trim()) errors.budgetRange = 'Budget range is required.';
+  if (!fields.requirements.trim()) errors.requirements = 'Tell us about your build requirements.';
   else if (fields.requirements.trim().length < 10) {
-    errors.requirements = 'Jelaskan kebutuhan build dengan minimal 10 karakter.';
+    errors.requirements = 'Describe your build requirements in at least 10 characters.';
   }
-  if (!fields.consent) errors.consent = 'Persetujuan untuk dihubungi wajib diberikan.';
-  if (files.length > 3) errors.photos = 'Maksimal 3 foto dapat dikirim.';
+  if (!fields.consent) errors.consent = 'Consent to be contacted is required.';
+  if (files.length > 3) errors.photos = 'You can upload up to 3 photos.';
 
   return errors;
 }
@@ -106,7 +107,20 @@ export default function ConsultationForm({
     : '';
   const referenceTitle = selectedReference
     ? `${selectedReference.name}${referenceDisplayName && referenceDisplayName !== selectedReference.name ? ` / ${referenceDisplayName}` : ''}`
-    : 'Belum menentukan';
+    : 'Not selected';
+  const consultationWhatsAppLink = getWhatsAppLink([
+    'Hello Ruka Motorworks, I would like to discuss a custom motorcycle build.',
+    `Name: ${fields.fullName.trim() || 'Not provided'}`,
+    `WhatsApp: ${fields.phone.trim() || 'Not provided'}`,
+    fields.email.trim() ? `Email: ${fields.email.trim()}` : '',
+    fields.city.trim() ? `City: ${fields.city.trim()}` : '',
+    `Reference motorcycle: ${referenceTitle}`,
+    fields.donorMotor
+      ? `Donor motorcycle: ${fields.donorMotor === 'other' ? fields.donorMotorOther.trim() || 'Other motorcycle' : fields.donorMotor}`
+      : '',
+    fields.budgetRange.trim() ? `Budget: ${fields.budgetRange.trim()}` : '',
+    fields.requirements.trim() ? `Build requirements: ${fields.requirements.trim()}` : '',
+  ].filter(Boolean).join('\n'));
 
   useEffect(() => () => {
     photoUrls.current.forEach((url) => URL.revokeObjectURL(url));
@@ -130,7 +144,7 @@ export default function ConsultationForm({
     setFormError('');
 
     if (photos.length + selected.length > 3) {
-      setErrors((current) => ({ ...current, photos: 'Maksimal 3 foto dapat dikirim.' }));
+      setErrors((current) => ({ ...current, photos: 'You can upload up to 3 photos.' }));
       return;
     }
 
@@ -140,8 +154,8 @@ export default function ConsultationForm({
     ));
     if (invalidFile) {
       const message = !['image/jpeg', 'image/png'].includes(invalidFile.type)
-        ? `${invalidFile.name}: gunakan foto JPG atau PNG.`
-        : `${invalidFile.name}: ukuran foto maksimal 5 MB.`;
+        ? `${invalidFile.name}: use a JPG or PNG image.`
+        : `${invalidFile.name}: image size must not exceed 5 MB.`;
       setErrors((current) => ({ ...current, photos: message }));
       return;
     }
@@ -211,12 +225,12 @@ export default function ConsultationForm({
         }
         setFormError(
           result?.message
-          || `Permintaan konsultasi belum tersimpan (${response.status}). Data tetap tersedia; silakan coba lagi.`,
+          || `Your consultation request was not saved (${response.status}). Your form data is still available; please try again.`,
         );
         return;
       }
 
-      setSuccess(`Permintaan konsultasi tersimpan dengan nomor ${result.data.id}. Ruka akan menghubungi Anda.`);
+      setSuccess(`Your consultation request was saved as ${result.data.id}. Ruka will contact you.`);
       setFields({ ...EMPTY_FIELDS, referenceMotorId: defaultReferenceId });
       setReferenceImageFailed(false);
       photos.forEach(({ preview }) => {
@@ -226,33 +240,33 @@ export default function ConsultationForm({
       setPhotos([]);
       setErrors({});
     } catch (error) {
-      console.error('Gagal mengirim permintaan konsultasi:', error);
-      setFormError('Tidak dapat terhubung ke server. Data tetap tersedia; periksa koneksi lalu coba lagi.');
+      console.error('Failed to submit consultation request:', error);
+      setFormError('Unable to connect to the server. Your form data is still available; check your connection and try again.');
     } finally {
       submitting.current = false;
       setIsSubmitting(false);
     }
   };
 
-  const basisLabel = selectedBasis || 'Basis motor dibahas saat konsultasi';
+  const basisLabel = selectedBasis || 'Motor basis to be discussed during consultation';
 
   return (
     <div className="rm-consult-form-wrap">
       <div className="rm-consult-reference">
         <div className="rm-consult-reference__body">
-          <p className="rm-meta">Referensi pilihanmu</p>
+          <p className="rm-meta">Your selected reference</p>
           <h3>{referenceTitle}</h3>
           <p>
             {selectedReference
               ? `${basisLabel} · ${selectedReference.categoryName || 'Custom build'}`
-              : 'Konsultasi terlebih dahulu · Kami bantu memilih arah build'}
+              : 'Start with a consultation · We will help you find a direction for your build'}
           </p>
           {selectedReference ? <strong>{formatRupiah(selectedReference.price)}</strong> : null}
         </div>
         {selectedReference ? (
           referenceImage && !referenceImageFailed ? (
             <img
-              alt={`Referensi ${selectedReference.name}`}
+              alt={`Reference ${selectedReference.name}`}
               className="rm-consult-reference__image"
               onError={() => setReferenceImageFailed(true)}
               src={referenceImage}
@@ -268,8 +282,8 @@ export default function ConsultationForm({
       </div>
 
       <p className="rm-consult-disclaimer">
-        Konsultasi awal bukan pemesanan atau pembayaran. Biaya akhir disepakati
-        bersama sebelum pengerjaan.
+        An initial consultation is not an order or payment. The final cost is agreed
+        together before work begins.
       </p>
 
       {success ? (
@@ -283,7 +297,7 @@ export default function ConsultationForm({
 
           <div className="rm-consult-form__grid">
             <label className="rm-consult-field rm-consult-field--full">
-              <span>Motor referensi</span>
+              <span>Reference motorcycle</span>
               <select
                 name="referenceMotorId"
                 onChange={(event) => {
@@ -292,7 +306,7 @@ export default function ConsultationForm({
                 }}
                 value={fields.referenceMotorId}
               >
-                <option value="">Belum menentukan / Konsultasi terlebih dahulu</option>
+                <option value="">Not decided / Start with a consultation</option>
                 {referenceOptions.map((item) => (
                   <option key={item.id} value={item.id}>
                     {getReferenceLabel(item)}
@@ -300,13 +314,13 @@ export default function ConsultationForm({
                 ))}
               </select>
               <small>
-                Pilih motor dari katalog sebagai acuan, atau biarkan kosong bila
-                masih ingin berdiskusi terlebih dahulu.
+                Choose a motorcycle from the catalog as a reference, or leave this blank
+                if you would like to discuss it first.
               </small>
             </label>
 
             <label className="rm-consult-field">
-              <span>Nama lengkap <b>*</b></span>
+              <span>Full name <b>*</b></span>
               <input
                 autoComplete="name"
                 aria-describedby={errors.fullName ? 'consult-name-error' : undefined}
@@ -314,7 +328,7 @@ export default function ConsultationForm({
                 maxLength={100}
                 name="fullName"
                 onChange={(event) => setField('fullName', event.target.value)}
-                placeholder="Nama yang bisa kami panggil"
+                placeholder="What should we call you?"
                 required
                 value={fields.fullName}
               />
@@ -322,7 +336,7 @@ export default function ConsultationForm({
             </label>
 
             <label className="rm-consult-field">
-              <span>Nomor WhatsApp <b>*</b></span>
+              <span>WhatsApp number <b>*</b></span>
               <input
                 autoComplete="tel"
                 aria-describedby={errors.phone ? 'consult-phone-error' : undefined}
@@ -332,7 +346,7 @@ export default function ConsultationForm({
                 maxLength={25}
                 name="phone"
                 onChange={(event) => setField('phone', event.target.value)}
-                placeholder="Contoh: 0812 3456 7890"
+                placeholder="Example: 0812 3456 7890"
                 required
                 type="tel"
                 value={fields.phone}
@@ -341,7 +355,7 @@ export default function ConsultationForm({
             </label>
 
             <label className="rm-consult-field">
-              <span>Email <em>(opsional)</em></span>
+              <span>Email <em>(optional)</em></span>
               <input
                 autoComplete="email"
                 aria-describedby={errors.email ? 'consult-email-error' : undefined}
@@ -349,7 +363,7 @@ export default function ConsultationForm({
                 maxLength={254}
                 name="email"
                 onChange={(event) => setField('email', event.target.value)}
-                placeholder="nama@email.com"
+                placeholder="name@example.com"
                 type="email"
                 value={fields.email}
               />
@@ -357,7 +371,7 @@ export default function ConsultationForm({
             </label>
 
             <label className="rm-consult-field">
-              <span>Kota domisili <b>*</b></span>
+              <span>City <b>*</b></span>
               <input
                 autoComplete="address-level2"
                 aria-describedby={errors.city ? 'consult-city-error' : undefined}
@@ -365,7 +379,7 @@ export default function ConsultationForm({
                 maxLength={100}
                 name="city"
                 onChange={(event) => setField('city', event.target.value)}
-                placeholder="Contoh: Bandung"
+                placeholder="Example: Bandung"
                 required
                 value={fields.city}
               />
@@ -382,40 +396,40 @@ export default function ConsultationForm({
                 required
                 value={fields.donorMotor}
               >
-                <option value="">Pilih status motor donor</option>
-                <option value={`Punya ${basisLabel}`}>Saya punya {basisLabel}</option>
-                <option value="Belum punya motor donor">Belum punya motor donor</option>
-                <option value="other">Saya punya motor lain</option>
+                <option value="">Select donor motorcycle status</option>
+                <option value={`I own ${basisLabel}`}>I own {basisLabel}</option>
+                <option value="I do not have a donor motorcycle">I do not have a donor motorcycle</option>
+                <option value="other">I have another motorcycle</option>
               </select>
               {errors.donorMotor ? <small className="is-error" id="consult-donor-error">{errors.donorMotor}</small> : null}
             </label>
 
             <label className="rm-consult-field">
-              <span>Kisaran anggaran <b>*</b></span>
+              <span>Budget range <b>*</b></span>
               <input
                 aria-describedby={errors.budgetRange ? 'consult-budget-error' : 'consult-budget-help'}
                 aria-invalid={Boolean(errors.budgetRange)}
                 maxLength={100}
                 name="budgetRange"
                 onChange={(event) => setField('budgetRange', event.target.value)}
-                placeholder="Contoh: Rp10–15 juta"
+                placeholder="Example: Rp10–15 million"
                 required
                 value={fields.budgetRange}
               />
               <small className={errors.budgetRange ? 'is-error' : undefined} id={errors.budgetRange ? 'consult-budget-error' : 'consult-budget-help'}>
-                {errors.budgetRange || 'Anggaran awal untuk membantu menyusun rencana.'}
+                {errors.budgetRange || 'An initial budget helps us put together a plan.'}
               </small>
             </label>
 
             {fields.donorMotor === 'other' ? (
               <label className="rm-consult-field rm-consult-field--full">
-                <span>Nama motor donor <b>*</b></span>
+                <span>Donor motorcycle <b>*</b></span>
                 <input
                   aria-describedby={errors.donorMotorOther ? 'consult-donor-other-error' : undefined}
                   aria-invalid={Boolean(errors.donorMotorOther)}
                   maxLength={160}
                   onChange={(event) => setField('donorMotorOther', event.target.value)}
-                  placeholder="Merek dan tipe motor"
+                  placeholder="Motorcycle make and model"
                   required
                   value={fields.donorMotorOther}
                 />
@@ -424,7 +438,7 @@ export default function ConsultationForm({
             ) : null}
 
             <label className="rm-consult-field rm-consult-field--full">
-              <span>Ceritakan kebutuhan build <b>*</b></span>
+              <span>Tell us about your build requirements <b>*</b></span>
               <textarea
                 aria-describedby={errors.requirements ? 'consult-requirements-error' : 'consult-requirements-help'}
                 aria-invalid={Boolean(errors.requirements)}
@@ -432,25 +446,25 @@ export default function ConsultationForm({
                 minLength={10}
                 name="requirements"
                 onChange={(event) => setField('requirements', event.target.value)}
-                placeholder="Gaya berkendara, kondisi motor donor, warna, jok, atau detail yang kamu inginkan..."
+                placeholder="Riding style, donor motorcycle condition, color, seat, or any details you have in mind..."
                 required
                 rows={5}
                 value={fields.requirements}
               />
               <small className={errors.requirements ? 'is-error' : undefined} id={errors.requirements ? 'consult-requirements-error' : 'consult-requirements-help'}>
-                {errors.requirements || 'Minimal 10 karakter, maksimal 5.000 karakter.'}
+                {errors.requirements || 'At least 10 characters, up to 5,000 characters.'}
               </small>
             </label>
           </div>
 
           <div className="rm-consult-upload">
             <div>
-              <p className="rm-consult-upload__title">Tambahkan foto donor atau referensi <em>(opsional)</em></p>
-              <p className="rm-consult-upload__hint">JPG / PNG · Maks. 5 MB per foto · Hingga 3 foto</p>
+              <p className="rm-consult-upload__title">Add donor or reference photos <em>(optional)</em></p>
+              <p className="rm-consult-upload__hint">JPG / PNG · Max. 5 MB per photo · Up to 3 photos</p>
             </div>
             <input
               accept="image/jpeg,image/png"
-              aria-label="Foto donor atau referensi"
+              aria-label="Donor or reference photos"
               aria-describedby={errors.photos ? 'consult-photos-error' : 'consult-photos-help'}
               aria-invalid={Boolean(errors.photos)}
               className="rm-visually-hidden"
@@ -467,19 +481,19 @@ export default function ConsultationForm({
               type="button"
             >
               <span aria-hidden="true">+</span>
-              Pilih foto
+              Choose photos
             </button>
             <small className={errors.photos ? 'is-error' : undefined} id={errors.photos ? 'consult-photos-error' : 'consult-photos-help'}>
-              {errors.photos || `${photos.length} dari 3 foto dipilih.`}
+              {errors.photos || `${photos.length} of 3 photos selected.`}
             </small>
             {photos.length ? (
               <ul className="rm-consult-photos">
                 {photos.map(({ file, preview }) => (
                   <li key={preview}>
-                    <img alt={`Pratinjau ${file.name}`} src={preview} />
+                    <img alt={`Preview of ${file.name}`} src={preview} />
                     <span title={file.name}>{file.name}</span>
                     <button
-                      aria-label={`Hapus foto ${file.name}`}
+                      aria-label={`Remove ${file.name}`}
                       disabled={isSubmitting}
                       onClick={() => removePhoto(preview)}
                       type="button"
@@ -503,16 +517,28 @@ export default function ConsultationForm({
               type="checkbox"
             />
             <span>
-              Saya setuju dihubungi Ruka melalui kontak di atas untuk membahas kebutuhan build ini. <b>*</b>
+              I agree to be contacted by Ruka using the details above to discuss this build. <b>*</b>
               {errors.consent ? <small className="is-error" id="consult-consent-error">{errors.consent}</small> : null}
             </span>
           </label>
 
           <button className="rm-consult-submit" disabled={isSubmitting} type="submit">
-            {isSubmitting ? 'Menyimpan permintaan...' : 'Kirim permintaan konsultasi'}
+            {isSubmitting ? 'Saving request...' : 'Submit Consultation Request'}
             {!isSubmitting ? <Icon name="arrow-up-right" size={18} /> : null}
           </button>
-          <p className="rm-consult-required-note">* Wajib diisi</p>
+          <a
+            className="rm-consult-whatsapp"
+            href={consultationWhatsAppLink}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <span>Consult directly via WhatsApp</span>
+            <Icon name="arrow-up-right" size={18} />
+          </a>
+          <p className="rm-consult-required-note">
+            WhatsApp opens a message draft and does not submit or save this web form.
+          </p>
+          <p className="rm-consult-required-note">* Required</p>
         </form>
       )}
     </div>

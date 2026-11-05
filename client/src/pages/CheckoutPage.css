@@ -42,6 +42,13 @@
   line-height: 1.65;
 }
 
+.rm-checkout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
 .rm-checkout__layout {
   align-items: start;
   display: grid;

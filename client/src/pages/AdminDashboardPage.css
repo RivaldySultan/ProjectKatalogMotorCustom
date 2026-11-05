@@ -206,6 +206,47 @@
   border-color: var(--rm-color-muted);
 }
 
+.rm-admin-purchases__heading-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.rm-admin-purchases__delete-all,
+.rm-admin-order__delete {
+  background: transparent;
+  border: 1px solid var(--rm-color-error);
+  border-radius: var(--rm-radius);
+  color: var(--rm-color-error);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.rm-admin-order__delete {
+  min-height: 36px;
+}
+
+.rm-admin-purchases__delete-all:hover,
+.rm-admin-order__delete:hover {
+  background: var(--rm-color-raised);
+}
+
+.rm-admin-purchases__delete-all:disabled,
+.rm-admin-order__delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.rm-admin-purchases__delete-all:focus-visible,
+.rm-admin-order__delete:focus-visible {
+  outline: 2px solid var(--rm-color-silver);
+  outline-offset: 2px;
+}
+
 .rm-admin__public-link svg,
 .rm-admin-panel__action svg {
   color: var(--rm-color-brick-hover);
@@ -328,6 +369,45 @@
 
 .rm-admin-order__detail:hover {
   color: var(--rm-color-brick-hover);
+}
+
+.rm-admin-order__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-self: end;
+}
+
+.rm-admin-consultation__complete {
+  background: transparent;
+  border: 1px solid var(--rm-color-rule);
+  border-radius: var(--rm-radius);
+  color: var(--rm-color-ivory);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.rm-admin-consultation__complete:hover {
+  background: var(--rm-color-raised);
+  border-color: var(--rm-color-muted);
+}
+
+.rm-admin-consultation__complete:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.rm-admin-purchase-action-error {
+  border: 1px solid var(--rm-color-error);
+  color: var(--rm-color-error);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+  padding: 10px 12px;
 }
 
 .rm-admin-empty {
@@ -636,6 +716,16 @@
     align-self: stretch;
   }
 
+  .rm-admin-purchases__heading-actions {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .rm-admin-purchases__delete-all {
+    width: 100%;
+  }
+
   .rm-admin-order {
     align-items: start;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -652,7 +742,7 @@
     grid-row: 2;
   }
 
-  .rm-admin-order__detail {
+  .rm-admin-order__actions {
     grid-column: 1 / -1;
     justify-self: start;
   }

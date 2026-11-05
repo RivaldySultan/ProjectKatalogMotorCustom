@@ -25,7 +25,7 @@ const upload = multer({
   },
   fileFilter: (req, file, callback) => {
     if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
-      return callback(new Error("Foto harus berformat JPG atau PNG."));
+      return callback(new Error("Photos must be in JPG or PNG format."));
     }
     return callback(null, true);
   },
@@ -60,41 +60,41 @@ function validateConsultation(body, product) {
   const basis = value("basis");
   const referenceMotorId = value("referenceMotorId");
 
-  if (!fullName) errors.fullName = "Masukkan nama lengkap.";
-  else if (fullName.length > 100) errors.fullName = "Nama maksimal 100 karakter.";
+  if (!fullName) errors.fullName = "Enter your full name.";
+  else if (fullName.length > 100) errors.fullName = "Name must not exceed 100 characters.";
 
-  if (!phone) errors.phone = "Masukkan nomor WhatsApp.";
+  if (!phone) errors.phone = "Enter your WhatsApp number.";
   else if (!/^\+?\d{8,15}$/.test(phone)) {
-    errors.phone = "Gunakan 8–15 digit; tanda + di depan boleh digunakan.";
+    errors.phone = "Enter 8–15 digits; a leading + is optional.";
   }
 
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-    errors.email = "Masukkan alamat email yang valid.";
+    errors.email = "Enter a valid email address.";
   } else if (email.length > 254) {
     errors.email = "Email terlalu panjang.";
   }
 
-  if (!city) errors.city = "Masukkan kota domisili.";
-  else if (city.length > 100) errors.city = "Kota maksimal 100 karakter.";
+  if (!city) errors.city = "Enter your city.";
+  else if (city.length > 100) errors.city = "City must not exceed 100 characters.";
 
-  if (!donorMotor) errors.donorMotor = "Pilih atau jelaskan motor donor.";
-  else if (donorMotor.length > 160) errors.donorMotor = "Motor donor maksimal 160 karakter.";
+  if (!donorMotor) errors.donorMotor = "Select or describe your donor motorcycle.";
+  else if (donorMotor.length > 160) errors.donorMotor = "Donor motorcycle details must not exceed 160 characters.";
 
-  if (!budgetRange) errors.budgetRange = "Masukkan kisaran anggaran.";
-  else if (budgetRange.length > 100) errors.budgetRange = "Kisaran anggaran maksimal 100 karakter.";
+  if (!budgetRange) errors.budgetRange = "Enter your budget range.";
+  else if (budgetRange.length > 100) errors.budgetRange = "Budget range must not exceed 100 characters.";
 
-  if (!requirements) errors.requirements = "Ceritakan kebutuhan build.";
-  else if (requirements.length < 10) errors.requirements = "Jelaskan kebutuhan build dengan minimal 10 karakter.";
-  else if (requirements.length > 5000) errors.requirements = "Cerita build maksimal 5.000 karakter.";
+  if (!requirements) errors.requirements = "Tell us about your build requirements.";
+  else if (requirements.length < 10) errors.requirements = "Describe your build requirements in at least 10 characters.";
+  else if (requirements.length > 5000) errors.requirements = "Build requirements must not exceed 5,000 characters.";
 
-  if (!product) errors.productId = "Produk referensi tidak ditemukan. Buka kembali detail motor.";
-  if (body.consent !== "true") errors.consent = "Persetujuan untuk dihubungi wajib diberikan.";
+  if (!product) errors.productId = "Reference product not found. Reopen the motorcycle details.";
+  if (body.consent !== "true") errors.consent = "Consent to be contacted is required.";
 
-  if (buildName.length > 100) errors.buildName = "Nama build tidak valid.";
-  if (buildCode.length > 40) errors.buildCode = "Kode build tidak valid.";
-  if (basis.length > 120) errors.basis = "Basis motor tidak valid.";
+  if (buildName.length > 100) errors.buildName = "Invalid build name.";
+  if (buildCode.length > 40) errors.buildCode = "Invalid build code.";
+  if (basis.length > 120) errors.basis = "Invalid motorcycle basis.";
   if (referenceMotorId.length > 100) {
-    errors.referenceMotorId = "Motor referensi tidak valid.";
+    errors.referenceMotorId = "Invalid reference motorcycle.";
   }
 
   return {
@@ -136,7 +136,7 @@ router.get("/", authenticateAdmin, (req, res) => {
   ) {
     return res.status(400).json({
       success: false,
-      message: "Filter atau pagination konsultasi tidak valid.",
+      message: "Invalid consultation filter or pagination.",
     });
   }
 
@@ -146,10 +146,10 @@ router.get("/", authenticateAdmin, (req, res) => {
       data: db.getConsultations({ name, phone, productId, page, pageSize, sort }),
     });
   } catch (error) {
-    console.error("Gagal memuat daftar konsultasi:", error);
+    console.error("Failed to load consultation list:", error);
     return res.status(500).json({
       success: false,
-      message: "Daftar konsultasi belum dapat dimuat.",
+      message: "The consultation list could not be loaded.",
     });
   }
 });
@@ -157,24 +157,24 @@ router.get("/", authenticateAdmin, (req, res) => {
 router.get("/:id/photos/:index", authenticateAdmin, async (req, res) => {
   const index = Number(req.params.index);
   if (!Number.isSafeInteger(index) || index < 0) {
-    return res.status(400).json({ success: false, message: "Foto tidak valid." });
+    return res.status(400).json({ success: false, message: "Invalid photo." });
   }
 
   try {
     const storedPath = db.getConsultationPhotoPath(req.params.id, index);
     if (!storedPath) {
-      return res.status(404).json({ success: false, message: "Foto konsultasi tidak ditemukan." });
+      return res.status(404).json({ success: false, message: "Consultation photo not found." });
     }
 
     const prefix = "/uploads/consultations/";
     const filename = storedPath.startsWith(prefix) ? storedPath.slice(prefix.length) : "";
     if (!filename || filename !== path.basename(filename)) {
-      return res.status(404).json({ success: false, message: "Foto konsultasi tidak ditemukan." });
+      return res.status(404).json({ success: false, message: "Consultation photo not found." });
     }
 
     const filePath = path.resolve(uploadDirectory, filename);
     if (!filePath.startsWith(`${uploadDirectory}${path.sep}`)) {
-      return res.status(404).json({ success: false, message: "Foto konsultasi tidak ditemukan." });
+      return res.status(404).json({ success: false, message: "Consultation photo not found." });
     }
 
     const contentType = path.extname(filename).toLowerCase() === ".png"
@@ -183,7 +183,7 @@ router.get("/:id/photos/:index", authenticateAdmin, async (req, res) => {
         ? "image/jpeg"
         : "";
     if (!contentType) {
-      return res.status(404).json({ success: false, message: "Foto konsultasi tidak ditemukan." });
+      return res.status(404).json({ success: false, message: "Consultation photo not found." });
     }
 
     return res.sendFile(filePath, {
@@ -197,18 +197,18 @@ router.get("/:id/photos/:index", authenticateAdmin, async (req, res) => {
         res.status(error.code === "ENOENT" ? 404 : 500).json({
           success: false,
           message: error.code === "ENOENT"
-            ? "Foto konsultasi tidak ditemukan."
-            : "Foto konsultasi belum dapat dimuat.",
+            ? "Consultation photo not found."
+            : "Consultation photo could not be loaded.",
         });
       } else if (error) {
-        console.error("Gagal mengirim foto konsultasi:", error);
+        console.error("Failed to send consultation photo:", error);
       }
     });
   } catch (error) {
-    console.error("Gagal memuat foto konsultasi:", error);
+    console.error("Failed to load consultation photo:", error);
     return res.status(500).json({
       success: false,
-      message: "Foto konsultasi belum dapat dimuat.",
+      message: "Consultation photo could not be loaded.",
     });
   }
 });
@@ -217,14 +217,14 @@ router.get("/:id", authenticateAdmin, (req, res) => {
   try {
     const consultation = db.getConsultationById(req.params.id);
     if (!consultation) {
-      return res.status(404).json({ success: false, message: "Permintaan konsultasi tidak ditemukan." });
+      return res.status(404).json({ success: false, message: "Consultation request not found." });
     }
     return res.json({ success: true, data: consultation });
   } catch (error) {
-    console.error("Gagal memuat detail konsultasi:", error);
+    console.error("Failed to load consultation details:", error);
     return res.status(500).json({
       success: false,
-      message: "Detail konsultasi belum dapat dimuat.",
+      message: "Consultation details could not be loaded.",
     });
   }
 });
@@ -234,35 +234,88 @@ router.patch("/:id/status", authenticateAdmin, (req, res) => {
   if (!status || status.length > 40) {
     return res.status(400).json({
       success: false,
-      message: "Status konsultasi tidak valid.",
+      message: "Invalid consultation status.",
     });
   }
 
   try {
     if (!db.getConsultationById(req.params.id)) {
-      return res.status(404).json({ success: false, message: "Permintaan konsultasi tidak ditemukan." });
+      return res.status(404).json({ success: false, message: "Consultation request not found." });
     }
     const result = db.updateConsultationStatus(req.params.id, status);
     if (result?.invalidStatus) {
       return res.status(400).json({
         success: false,
-        message: "Pilih status yang sudah digunakan pada permintaan konsultasi.",
+        message: "Choose a status already used for a consultation request.",
         allowedStatuses: result.allowedStatuses,
       });
     }
     if (!result) {
-      return res.status(404).json({ success: false, message: "Permintaan konsultasi tidak ditemukan." });
+      return res.status(404).json({ success: false, message: "Consultation request not found." });
     }
     return res.json({
       success: true,
-      message: "Status konsultasi berhasil diperbarui.",
+      message: "Consultation status updated.",
       data: result,
     });
   } catch (error) {
-    console.error("Gagal memperbarui status konsultasi:", error);
+    console.error("Failed to update consultation status:", error);
     return res.status(500).json({
       success: false,
-      message: "Status konsultasi belum dapat diperbarui.",
+      message: "Consultation status could not be updated.",
+    });
+  }
+});
+
+router.delete("/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const consultation = db.getConsultationById(req.params.id);
+    if (!consultation) {
+      return res.status(404).json({ success: false, message: "Consultation request not found." });
+    }
+    if (String(consultation.status || "").trim().toLowerCase() !== "completed") {
+      return res.status(409).json({
+        success: false,
+        message: "Only completed consultation requests can be deleted.",
+      });
+    }
+    if (!db.deleteCompletedConsultation(req.params.id)) {
+      return res.status(409).json({
+        success: false,
+        message: "The consultation request is no longer completed and could not be deleted.",
+      });
+    }
+
+    const photoPrefix = "/uploads/consultations/";
+    for (const photo of consultation.photos) {
+      const filename = photo.startsWith(photoPrefix) ? photo.slice(photoPrefix.length) : "";
+      if (!filename || filename !== path.basename(filename)) {
+        console.error("Skipped deleting an invalid consultation photo path.");
+        continue;
+      }
+      const filePath = path.resolve(uploadDirectory, filename);
+      if (!filePath.startsWith(`${uploadDirectory}${path.sep}`)) {
+        console.error("Skipped deleting a consultation photo outside the upload directory.");
+        continue;
+      }
+      try {
+        await fs.unlink(filePath);
+      } catch (error) {
+        if (error.code !== "ENOENT") {
+          console.error("Failed to delete a completed consultation photo:", error);
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: "Completed consultation request deleted.",
+    });
+  } catch (error) {
+    console.error("Failed to delete completed consultation:", error);
+    return res.status(500).json({
+      success: false,
+      message: "The completed consultation request could not be deleted.",
     });
   }
 });
@@ -275,10 +328,10 @@ router.post("/", (req, res, next) => {
       const tooLarge = error.code === "LIMIT_FILE_SIZE";
       const tooMany = error.code === "LIMIT_FILE_COUNT";
       const message = tooLarge
-        ? "Setiap foto maksimal berukuran 5 MB."
+        ? "Each photo must not exceed 5 MB."
         : tooMany
-          ? "Maksimal 3 foto dapat dikirim."
-          : "Lampiran tidak valid. Pilih maksimal 3 foto JPG atau PNG.";
+          ? "You can submit up to 3 photos."
+          : "Invalid attachment. Select up to 3 JPG or PNG photos.";
       return res.status(tooLarge ? 413 : 400).json({
         success: false,
         message,
@@ -288,8 +341,8 @@ router.post("/", (req, res, next) => {
 
     return res.status(400).json({
       success: false,
-      message: error.message || "Foto tidak dapat diproses.",
-      errors: { photos: error.message || "Pilih foto JPG atau PNG." },
+      message: error.message || "Photos could not be processed.",
+      errors: { photos: error.message || "Choose JPG or PNG photos." },
     });
   });
 }, async (req, res) => {
@@ -303,15 +356,15 @@ router.post("/", (req, res, next) => {
   if (values.referenceMotorId) {
     referenceMotor = db.getProductById(values.referenceMotorId);
     if (!referenceMotor) {
-      errors.referenceMotorId = "Motor referensi tidak ditemukan. Pilih motor lain dari katalog.";
+      errors.referenceMotorId = "Reference motorcycle not found. Choose another motorcycle from the catalog.";
     } else if (String(referenceMotor.stockStatus || "").toLowerCase() !== "tersedia") {
-      errors.referenceMotorId = "Motor referensi sudah tidak aktif di katalog. Pilih motor lain.";
+      errors.referenceMotorId = "The reference motorcycle is no longer active in the catalog. Choose another motorcycle.";
     }
   }
 
   for (const photo of photos) {
     if (!isValidImage(photo)) {
-      errors.photos = `${photo.originalname || "Foto"} bukan berkas JPG atau PNG yang valid.`;
+      errors.photos = `${photo.originalname || "Photo"} is not a valid JPG or PNG file.`;
       break;
     }
   }
@@ -319,7 +372,7 @@ router.post("/", (req, res, next) => {
   if (Object.keys(errors).length) {
     return res.status(400).json({
       success: false,
-      message: "Periksa kembali data konsultasi yang ditandai.",
+      message: "Check the highlighted consultation details.",
       errors,
     });
   }
@@ -354,7 +407,7 @@ router.post("/", (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      message: "Permintaan konsultasi berhasil disimpan.",
+      message: "Consultation request saved.",
       data: stored,
     });
   } catch (error) {
@@ -363,14 +416,14 @@ router.post("/", (req, res, next) => {
         await fs.unlink(file.filePath);
       } catch (cleanupError) {
         if (cleanupError.code !== "ENOENT") {
-          console.error("Gagal membersihkan foto konsultasi yang tidak tersimpan:", cleanupError);
+          console.error("Failed to clean up unsaved consultation photos:", cleanupError);
         }
       }
     }
-    console.error("Gagal menyimpan permintaan konsultasi:", error);
+    console.error("Failed to save consultation request:", error);
     return res.status(500).json({
       success: false,
-      message: "Permintaan belum tersimpan. Data formulir tetap tersedia; silakan coba lagi.",
+      message: "Your request was not saved. Your form data is still available; please try again.",
     });
   }
 });

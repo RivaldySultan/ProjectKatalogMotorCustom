@@ -312,12 +312,13 @@
   margin-top: 4px;
 }
 
-.rm-consult-submit {
+.rm-consult-submit,
+.rm-consult-whatsapp {
   align-items: center;
-  background: var(--rm-color-brick);
-  border: 1px solid var(--rm-color-brick);
+  background: transparent;
+  border: 1px solid var(--rm-color-paper-line);
   border-radius: var(--rm-radius);
-  color: var(--rm-color-ivory);
+  color: var(--rm-color-paper-ink);
   cursor: pointer;
   display: flex;
   font: inherit;
@@ -327,12 +328,29 @@
   justify-content: space-between;
   min-height: 48px;
   padding: 0 18px;
+  text-decoration: none;
   transition: background var(--rm-transition), border-color var(--rm-transition);
+}
+
+.rm-consult-submit {
+  background: var(--rm-color-brick);
+  border-color: var(--rm-color-brick);
+  color: var(--rm-color-ivory);
+}
+
+.rm-consult-whatsapp:hover {
+  background: var(--rm-color-paper-panel);
+  border-color: var(--rm-color-paper-ink);
 }
 
 .rm-consult-submit:hover:not(:disabled) {
   background: var(--rm-color-brick-hover);
   border-color: var(--rm-color-brick-hover);
+}
+
+.rm-consult-whatsapp:focus-visible {
+  outline: 2px solid var(--rm-color-brick);
+  outline-offset: 2px;
 }
 
 .rm-consult-required-note {
