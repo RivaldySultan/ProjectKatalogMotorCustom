@@ -235,6 +235,9 @@ class SqliteDatabase {
     if (!columns.has("admin_hidden_at")) {
       this.db.exec("ALTER TABLE purchase_orders ADD COLUMN admin_hidden_at TEXT");
     }
+    if (!columns.has("customer_hidden_at")) {
+      this.db.exec("ALTER TABLE purchase_orders ADD COLUMN customer_hidden_at TEXT");
+    }
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_purchase_orders_customer ON purchase_orders(customer_id, created_at DESC)");
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS purchase_order_events (
@@ -1263,7 +1266,7 @@ class SqliteDatabase {
     const whereStatus = status ? `AND (${statusConditions[status] || "0 = 1"})` : "";
     const total = this.db.prepare(`
       SELECT COUNT(*) AS count FROM purchase_orders
-      WHERE customer_id = ? ${whereStatus}
+      WHERE customer_id = ? AND customer_hidden_at IS NULL ${whereStatus}
     `).get(customerId).count;
     const direction = sort === "asc" ? "ASC" : "DESC";
     const data = this.db.prepare(`
@@ -1320,7 +1323,7 @@ class SqliteDatabase {
         END AS status,
         created_at AS createdAt
       FROM purchase_orders
-      WHERE customer_id = ? ${whereStatus}
+      WHERE customer_id = ? AND customer_hidden_at IS NULL ${whereStatus}
       ORDER BY created_at ${direction}, id ${direction}
       LIMIT ? OFFSET ?
     `).all(customerId, pageSize, (page - 1) * pageSize);
@@ -1331,6 +1334,11 @@ class SqliteDatabase {
   }
 
   getCustomerPurchaseOrderById(customerId, id) {
+    const visibleOrder = this.db.prepare(`
+      SELECT 1 FROM purchase_orders
+      WHERE id = ? AND customer_id = ? AND customer_hidden_at IS NULL
+    `).get(id, customerId);
+    if (!visibleOrder) return null;
     const order = this.getPurchaseOrderById(id);
     if (!order || order.customerId !== customerId) return null;
     const { paymentProof, ...safeOrder } = order;
@@ -1354,16 +1362,49 @@ class SqliteDatabase {
       ? `
         SELECT proof.filename FROM purchase_payment_proofs proof
         JOIN purchase_orders po ON po.id = proof.purchase_order_id
-        WHERE po.id = ? AND po.customer_id = ? AND proof.id = ?
+        WHERE po.id = ? AND po.customer_id = ? AND po.customer_hidden_at IS NULL AND proof.id = ?
       `
       : `
         SELECT po.payment_proof AS filename FROM purchase_orders po
-        WHERE po.id = ? AND po.customer_id = ?
+        WHERE po.id = ? AND po.customer_id = ? AND po.customer_hidden_at IS NULL
       `;
     const row = proofId
       ? this.db.prepare(query).get(orderId, customerId, proofId)
       : this.db.prepare(query).get(orderId, customerId);
     return row?.filename || null;
+  }
+
+  hideCustomerPurchaseOrder(customerId, id) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const order = this.db.prepare(`
+        SELECT order_status AS orderStatus FROM purchase_orders
+        WHERE id = ? AND customer_id = ? AND customer_hidden_at IS NULL
+      `).get(id, customerId);
+      if (!order) {
+        this.db.exec("ROLLBACK");
+        return { found: false, deleted: false };
+      }
+      if (!["completed", "cancelled"].includes(order.orderStatus)) {
+        this.db.exec("ROLLBACK");
+        return { found: true, deleted: false };
+      }
+      const result = this.db.prepare(`
+        UPDATE purchase_orders
+        SET customer_hidden_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND customer_id = ? AND customer_hidden_at IS NULL
+          AND order_status IN ('completed', 'cancelled')
+      `).run(id, customerId);
+      if (!result.changes) {
+        this.db.exec("ROLLBACK");
+        return { found: false, deleted: false };
+      }
+      this.db.exec("COMMIT");
+      return { found: true, deleted: true };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   claimGuestPurchaseOrder(id, customerId) {
@@ -1400,9 +1441,15 @@ class SqliteDatabase {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const order = this.getPurchaseOrderById(id);
+      const customerVisibility = this.db.prepare(`
+        SELECT customer_hidden_at AS customerHiddenAt FROM purchase_orders
+        WHERE id = ? AND customer_id = ?
+      `).get(id, customerId);
       if (
         !order
         || order.customerId !== customerId
+        || !customerVisibility
+        || customerVisibility.customerHiddenAt
         || order.paymentStatus !== "paid"
         || !(
           (order.shippingMethod === "delivery" && order.orderStatus === "delivered")

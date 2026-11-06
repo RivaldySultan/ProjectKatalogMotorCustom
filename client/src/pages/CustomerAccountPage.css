@@ -109,6 +109,16 @@
   opacity: 0.5;
 }
 
+.rm-account__secondary--danger {
+  border-color: var(--rm-danger);
+  color: var(--rm-danger);
+}
+
+.rm-account__secondary--danger:hover:not(:disabled) {
+  background: var(--rm-danger);
+  color: var(--rm-color-garage);
+}
+
 .rm-account__text-link,
 .rm-account__table a {
   color: var(--rm-text);

@@ -247,6 +247,25 @@ router.get("/orders/:id", authenticateCustomer, (req, res) => {
   return res.json({ success: true, data: withPaymentInstructions(order) });
 });
 
+router.delete("/orders/:id", authenticateCustomer, (req, res) => {
+  try {
+    const result = db.hideCustomerPurchaseOrder(req.customer.id, req.params.id);
+    if (!result.found) {
+      return res.status(404).json({ success: false, message: "Order not found." });
+    }
+    if (!result.deleted) {
+      return res.status(409).json({
+        success: false,
+        message: "Only completed or cancelled orders can be removed from your history.",
+      });
+    }
+    return res.json({ success: true, message: "Order removed from your history." });
+  } catch (error) {
+    console.error("Failed to remove customer order history:", error);
+    return res.status(500).json({ success: false, message: "Order history could not be removed." });
+  }
+});
+
 router.post("/orders/:id/confirm-received", authenticateCustomer, (req, res) => {
   if (!db.getCustomerPurchaseOrderById(req.customer.id, req.params.id)) {
     return res.status(404).json({ success: false, message: "Order not found." });

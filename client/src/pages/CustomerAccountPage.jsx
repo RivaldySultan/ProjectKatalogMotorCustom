@@ -194,12 +194,13 @@ function AccountHome({ user }) {
 
 function OrdersPage() {
   const [orders, setOrders] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 0 });
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0, totalPages: 0 });
   const [status, setStatus] = useState('');
   const [sort, setSort] = useState('desc');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [confirmingOrderId, setConfirmingOrderId] = useState('');
+  const [deletingOrderId, setDeletingOrderId] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -248,6 +249,38 @@ function OrdersPage() {
       setError('Unable to connect to the server. Order receipt was not confirmed.');
     } finally {
       setConfirmingOrderId('');
+    }
+  };
+
+  const deleteOrderHistory = async (order) => {
+    if (!window.confirm(`Remove order ${order.orderNumber} from your history?`)) return;
+    setDeletingOrderId(order.id);
+    setError('');
+    try {
+      const result = await customerRequest(
+        `/api/customers/orders/${encodeURIComponent(order.id)}`,
+        { method: 'DELETE' },
+      );
+      if (!result.ok) {
+        setError(result.message || 'Order history could not be removed.');
+        return;
+      }
+      setOrders((current) => current.filter((item) => item.id !== order.id));
+      setPagination((current) => {
+        const total = Math.max(0, current.total - 1);
+        const totalPages = Math.ceil(total / current.pageSize);
+        return {
+          ...current,
+          total,
+          totalPages,
+          page: Math.min(current.page, Math.max(1, totalPages)),
+        };
+      });
+    } catch (requestError) {
+      console.error('Failed to remove customer order history:', requestError);
+      setError('Unable to connect to the server. Order history was not removed.');
+    } finally {
+      setDeletingOrderId('');
     }
   };
 
@@ -311,6 +344,16 @@ function OrdersPage() {
                         </button>
                       ) : null}
                     {order.customerReceivedAt ? <span>Receipt confirmed</span> : null}
+                    {['completed', 'cancelled'].includes(order.orderStatus) ? (
+                      <button
+                        className="rm-account__secondary rm-account__secondary--danger"
+                        disabled={Boolean(deletingOrderId)}
+                        onClick={() => void deleteOrderHistory(order)}
+                        type="button"
+                      >
+                        {deletingOrderId === order.id ? 'Deleting...' : 'Delete history'}
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
               ))}</tbody>
