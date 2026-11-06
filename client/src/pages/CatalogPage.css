@@ -244,6 +244,16 @@
   padding: 4px 24px 4px 0;
 }
 
+.rm-sort__control select option {
+  background-color: var(--rm-surface);
+  color: var(--rm-text);
+}
+
+.rm-sort__control select option:checked {
+  background-color: var(--rm-accent);
+  color: var(--rm-accent-contrast);
+}
+
 .rm-sort__control svg {
   color: var(--rm-text-muted);
   pointer-events: none;
