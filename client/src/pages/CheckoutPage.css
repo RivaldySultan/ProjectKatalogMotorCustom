@@ -110,7 +110,7 @@
 }
 
 .rm-checkout__form legend {
-  color: var(--rm-color-silver);
+  color: var(--rm-accent-hover);
   font-family: var(--rm-font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -130,7 +130,7 @@
 .rm-checkout__form select,
 .rm-checkout__form textarea,
 .rm-checkout__proof input {
-  background: #111;
+  background: var(--rm-bg);
   border: 1px solid var(--rm-border);
   border-radius: 2px;
   color: var(--rm-text);
@@ -140,6 +140,16 @@
   min-width: 0;
   padding: 10px 12px;
   width: 100%;
+}
+
+.rm-checkout__form select option {
+  background-color: var(--rm-surface);
+  color: var(--rm-text);
+}
+
+.rm-checkout__form select option:checked {
+  background-color: var(--rm-accent);
+  color: var(--rm-accent-contrast);
 }
 
 .rm-checkout__form textarea {
@@ -152,7 +162,7 @@
 .rm-checkout__proof input:focus-visible,
 .rm-checkout__copy button:focus-visible,
 .rm-checkout__refresh:focus-visible {
-  outline: 2px solid var(--rm-color-silver);
+  outline: 2px solid var(--rm-accent-hover);
   outline-offset: 2px;
 }
 
