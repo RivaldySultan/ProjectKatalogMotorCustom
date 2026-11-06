@@ -179,6 +179,17 @@
   width: 100%;
 }
 
+.rm-checkout__form .rm-button--primary {
+  background: var(--rm-accent);
+  border-color: var(--rm-accent);
+  color: var(--rm-accent-contrast);
+}
+
+.rm-checkout__form .rm-button--primary:hover:not(:disabled) {
+  background: var(--rm-accent-hover);
+  border-color: var(--rm-accent-hover);
+}
+
 .rm-checkout__form .rm-button:disabled,
 .rm-checkout__proof .rm-button:disabled {
   cursor: not-allowed;
