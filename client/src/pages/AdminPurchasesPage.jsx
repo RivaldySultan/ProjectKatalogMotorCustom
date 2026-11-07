@@ -6,6 +6,7 @@ import { adminRequest, clearAdminSession, getAdminToken } from '../lib/adminAuth
 import { formatRupiah } from '../lib/products';
 import { navigate } from '../lib/router';
 import { usePageTitle } from '../lib/usePageTitle';
+import OrderChat from '../components/ui/OrderChat';
 import './AdminPurchasesPage.css';
 
 const PAGE_SIZE = 10;
@@ -501,6 +502,7 @@ function PurchaseDetail({ id }) {
               </section>
             ) : null}
           </div>
+          <OrderChat orderId={order.id} viewer="admin" />
         </>
       ) : null}
     </AdminLayout>

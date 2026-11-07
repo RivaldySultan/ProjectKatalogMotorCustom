@@ -6,6 +6,7 @@ import { usePageTitle } from '../lib/usePageTitle';
 import { customerRequest, useCustomerSession } from '../lib/customerAuth';
 import { navigate } from '../lib/router';
 import './CustomerPurchasePage.css';
+import OrderChat from '../components/ui/OrderChat';
 
 const STATUS_LABELS = {
   pending_approval: 'Awaiting Ruka approval',
@@ -370,6 +371,7 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
               </ol>
             ) : <p className="rm-customer-order__note">No order activity has been recorded yet.</p>}
           </section>
+          <OrderChat accessToken={accessToken} orderId={order.id} viewer="customer" />
           {error && order ? <p className="rm-customer-order__message is-error" role="alert">{error}</p> : null}
           <a className="rm-customer-order__whatsapp" href={whatsappLink} rel="noopener noreferrer" target="_blank">Contact Ruka on WhatsApp</a>
         </>

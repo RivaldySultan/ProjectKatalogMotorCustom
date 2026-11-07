@@ -4,6 +4,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { once } from "node:events";
+import { createHash } from "node:crypto";
+import jwt from "jsonwebtoken";
 
 const temporaryDirectory = mkdtempSync(path.join(os.tmpdir(), "katalog-password-reset-"));
 process.env.KATALOG_DB_PATH = path.join(temporaryDirectory, "test.sqlite");
@@ -17,6 +19,7 @@ process.env.WHATSAPP_OTP_LANGUAGE = "id";
 const { db } = await import("../src/db/db.js");
 const authRoutes = (await import("../src/routes/auth.js")).default;
 const customerRoutes = (await import("../src/routes/customers.js")).default;
+const purchaseRoutes = (await import("../src/routes/purchases.js")).default;
 const {
   finishPasswordReset,
   normalizeWhatsAppNumber,
@@ -41,6 +44,7 @@ const app = express();
 app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/customers", customerRoutes);
+app.use("/api/purchases", purchaseRoutes);
 httpServer = app.listen(0, "127.0.0.1");
 await once(httpServer, "listening");
 const baseUrl = `http://127.0.0.1:${httpServer.address().port}`;
@@ -250,4 +254,99 @@ test("expired codes and codes with five incorrect attempts cannot reset a passwo
     otp: correctOtp,
     passwordHash: "not-used",
   }), "invalid");
+});
+
+test("order chat is available only to the order customer or an admin", async () => {
+  const accessToken = "ab".repeat(32);
+  db.db.prepare(`
+    INSERT INTO purchase_orders (
+      id, order_number, idempotency_key, request_hash, access_token_hash,
+      customer_id, product_id, product_name, build_name, purchase_type,
+      basis, category_name, specifications, price_snapshot, shipping_method,
+      total_amount, customer_name, phone, city, payment_method, order_status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    "chat-order-test",
+    "RM-CHAT-TEST",
+    "idempotency-chat-test",
+    "request-hash",
+    createHash("sha256").update(accessToken).digest("hex"),
+    "customer-test",
+    "prod_1",
+    "Test Bike",
+    "Test Build",
+    "made_to_order",
+    "Test basis",
+    "Test category",
+    "[]",
+    100000,
+    "pickup",
+    100000,
+    "Test Customer",
+    "6282222222222",
+    "Jakarta",
+    "gopay",
+    "awaiting_payment",
+  );
+
+  const invalidMessage = await post("/api/purchases/chat-order-test/messages", { message: "  " }, {
+    "X-Order-Access-Token": accessToken,
+  });
+  assert.equal(invalidMessage.status, 400);
+
+  const customerLogin = await post("/api/customers/login", {
+    email: "customer@example.test",
+    password: "new-customer-password",
+  });
+  assert.equal(customerLogin.status, 200);
+  const customerCookie = customerLogin.headers.get("set-cookie").split(";")[0];
+  const customerMessage = await post("/api/purchases/chat-order-test/messages", {
+    message: "Can I ask about this motorcycle?",
+  }, {
+    Cookie: customerCookie,
+    "X-Order-Access-Token": accessToken,
+  });
+  assert.equal(customerMessage.status, 201);
+  assert.equal((await customerMessage.json()).data.actorType, "customer");
+
+  const accountMessages = await originalFetch(`${baseUrl}/api/purchases/chat-order-test/messages`, {
+    headers: { Cookie: customerCookie },
+  });
+  assert.equal(accountMessages.status, 200);
+  const accountMessage = await post("/api/purchases/chat-order-test/messages", {
+    message: "I am asking from my customer account.",
+  }, { Cookie: customerCookie });
+  assert.equal(accountMessage.status, 201);
+
+  const unauthorized = await originalFetch(`${baseUrl}/api/purchases/chat-order-test/messages`, {
+    headers: { "X-Order-Access-Token": "cd".repeat(32) },
+  });
+  assert.equal(unauthorized.status, 404);
+
+  const admin = db.getAdminById("admin-test");
+  const adminToken = jwt.sign({
+    email: admin.email,
+    role: "admin",
+    authVersion: admin.authVersion,
+  }, process.env.JWT_SECRET, { subject: admin.id, expiresIn: "1h" });
+  const adminHeaders = { Authorization: `Bearer ${adminToken}` };
+  const adminMessage = await post("/api/purchases/admin/chat-order-test/messages", {
+    message: "Yes, this model is available for discussion.",
+  }, adminHeaders);
+  assert.equal(adminMessage.status, 201);
+  assert.equal((await adminMessage.json()).data.actorType, "admin");
+
+  const customerMessages = await originalFetch(`${baseUrl}/api/purchases/chat-order-test/messages`, {
+    headers: { "X-Order-Access-Token": accessToken },
+  });
+  assert.equal(customerMessages.status, 200);
+  const messages = (await customerMessages.json()).data.messages;
+  assert.equal(messages.length, 3);
+  assert.deepEqual(messages.map(({ actorType }) => actorType), ["customer", "customer", "admin"]);
+
+  const adminMessages = await originalFetch(`${baseUrl}/api/purchases/admin/chat-order-test/messages`, {
+    headers: adminHeaders,
+  });
+  assert.equal(adminMessages.status, 200);
+  assert.equal((await adminMessages.json()).data.messages.length, 3);
 });

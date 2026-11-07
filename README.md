@@ -87,6 +87,8 @@ PAYMENT_SEABANK_ACCOUNT_NAME=
 
 Methods without valid configuration are not displayed, and the endpoint will not create an order if a method is not ready. Do not use example values as active account details. Payments are still made by manual transfer; submitted proofs only move to the `waiting_verification` status. Customers can view the status and upload or update proof through their private access link. Payment is marked `paid` only after an admin verifies receipt of funds and confirms it on `/admin/purchases`. Proofs are stored in a private directory and are not accessible through public upload URLs. No payment gateway is active.
 
+Customers can chat with Ruka about an order from its private status link or the order detail in `/akun/pesanan`. Admins can read and reply from that order's detail page in `/admin/purchases`. Conversations are stored per purchase order, require the order access token or the signed-in customer owner for customer access, and refresh every five seconds while open. Text messages are limited to 2,000 characters, with a per-sender limit of 20 messages per order per minute.
+
 For production, configure these four variables in the hosting provider's environment settings or in `server/.env` on the VPS. The local `.env` file is ignored by Git and is not included in deployments. Restart the backend service after changing its environment, then check `GET /api/purchases/payment-methods`; the response should list each configured method before enabling checkout.
 
 Public purchase endpoints:
@@ -104,8 +106,11 @@ Admin endpoints require admin authentication:
 - `POST /api/purchases/admin/:id/shipping-quote` — saves the confirmed shipping cost.
 - `POST /api/purchases/admin/:id/payment-review` — confirms or rejects payment proof.
 - `PATCH /api/purchases/admin/:id/status` — updates progress after payment is confirmed.
+- `GET /api/purchases/admin/:id/messages` and `POST /api/purchases/admin/:id/messages` — read and send messages for an order.
 
 Admin password recovery uses `POST /api/auth/forgot-password` and `POST /api/auth/reset-password`; the destination is the admin WhatsApp number configured in `ADMIN_PHONE`.
+
+Customer order chat endpoints are `GET /api/purchases/:id/messages` and `POST /api/purchases/:id/messages`. Supply the order access token in `X-Order-Access-Token`, or use the signed-in customer session for an order linked to that account.
 
 Consultation requests remain at `/admin/orders` and do not become purchase transactions. No migration removes or changes existing consultation data.
 

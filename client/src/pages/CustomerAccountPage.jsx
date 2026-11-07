@@ -3,6 +3,7 @@ import Link from '../components/ui/Link';
 import { customerRequest, useCustomerSession, establishCustomerSession } from '../lib/customerAuth';
 import { formatRupiah, getCatalogProductImage } from '../lib/products';
 import { usePageTitle } from '../lib/usePageTitle';
+import OrderChat from '../components/ui/OrderChat';
 import './CustomerAccountPage.css';
 
 const STATUS_LABELS = {
@@ -580,6 +581,7 @@ function OrderDetailPage({ orderId }) {
           {error && canReplaceProof ? <p className="rm-account__error" role="alert">{error}</p> : null}
         </section>
       </div>
+      <OrderChat orderId={order.id} viewer="customer" />
     </>
   );
 }

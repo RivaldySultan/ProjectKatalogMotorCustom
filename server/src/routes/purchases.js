@@ -123,6 +123,79 @@ function withPaymentInstructions(order) {
   return { ...order, paymentInstructions };
 }
 
+function getCustomerOrderForChat(req) {
+  const order = db.getPurchaseOrderById(req.params.id);
+  if (!order || order.adminHiddenAt || order.customerHiddenAt) return null;
+
+  const accessToken = req.get("x-order-access-token") || "";
+  const hasValidAccessToken = /^[a-f0-9]{64}$/i.test(accessToken)
+    && db.verifyPurchaseAccess(req.params.id, accessToken);
+  const isOwner = Boolean(req.customer && order.customerId === req.customer.id);
+  if (!hasValidAccessToken && !isOwner) return null;
+
+  return {
+    order,
+    actorId: isOwner ? req.customer.id : `guest:${order.id}`,
+  };
+}
+
+function getAdminOrderForChat(id) {
+  const order = db.getPurchaseOrderById(id);
+  return order && !order.adminHiddenAt ? order : null;
+}
+
+function validateChatMessage(value) {
+  if (typeof value !== "string") return "";
+  const message = value.trim();
+  return message.length >= 1 && message.length <= 2000 ? message : "";
+}
+
+function listOrderMessages(res, orderId) {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.json({ success: true, data: { messages: db.getPurchaseOrderMessages(orderId) } });
+  } catch (error) {
+    console.error("Failed to load purchase order messages:", error);
+    return res.status(500).json({ success: false, message: "Order messages could not be loaded." });
+  }
+}
+
+function createOrderMessage(req, res, { orderId, actorType, actorId }) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const message = validateChatMessage(req.body?.message);
+  if (!message) {
+    return res.status(400).json({
+      success: false,
+      message: "Message must contain 1–2,000 characters.",
+    });
+  }
+  if (db.countRecentPurchaseOrderMessages(
+    orderId,
+    actorType,
+    actorId,
+    new Date(Date.now() - 60_000).toISOString(),
+  ) >= 20) {
+    return res.status(429).json({
+      success: false,
+      message: "Please wait a minute before sending more messages.",
+    });
+  }
+
+  try {
+    const savedMessage = db.createPurchaseOrderMessage({
+      id: randomUUID(),
+      orderId,
+      actorType,
+      actorId,
+      message,
+    });
+    return res.status(201).json({ success: true, data: savedMessage });
+  } catch (error) {
+    console.error("Failed to save purchase order message:", error);
+    return res.status(500).json({ success: false, message: "Your message could not be sent." });
+  }
+}
+
 router.get("/payment-methods", (req, res) => {
   res.json({ success: true, data: getAvailablePaymentMethods() });
 });
@@ -230,6 +303,22 @@ router.get("/admin/:id", authenticateAdmin, (req, res) => {
       ...withPaymentInstructions(safeOrder),
       paymentProofUrl: hasPaymentProof ? `/api/purchases/admin/${encodeURIComponent(order.id)}/proof` : null,
     },
+  });
+});
+
+router.get("/admin/:id/messages", authenticateAdmin, (req, res) => {
+  const order = getAdminOrderForChat(req.params.id);
+  if (!order) return res.status(404).json({ success: false, message: "Order not found." });
+  return listOrderMessages(res, order.id);
+});
+
+router.post("/admin/:id/messages", authenticateAdmin, (req, res) => {
+  const order = getAdminOrderForChat(req.params.id);
+  if (!order) return res.status(404).json({ success: false, message: "Order not found." });
+  return createOrderMessage(req, res, {
+    orderId: order.id,
+    actorType: "admin",
+    actorId: req.admin.id,
   });
 });
 
@@ -413,6 +502,22 @@ router.get("/:id", (req, res) => {
   const order = db.getCustomerPurchaseOrder(req.params.id, accessToken);
   if (!order) return res.status(404).json({ success: false, message: "Order not found or access token is invalid." });
   return res.json({ success: true, data: withPaymentInstructions(order) });
+});
+
+router.get("/:id/messages", optionalCustomer, (req, res) => {
+  const access = getCustomerOrderForChat(req);
+  if (!access) return res.status(404).json({ success: false, message: "Order not found or access token is invalid." });
+  return listOrderMessages(res, access.order.id);
+});
+
+router.post("/:id/messages", optionalCustomer, (req, res) => {
+  const access = getCustomerOrderForChat(req);
+  if (!access) return res.status(404).json({ success: false, message: "Order not found or access token is invalid." });
+  return createOrderMessage(req, res, {
+    orderId: access.order.id,
+    actorType: "customer",
+    actorId: access.actorId,
+  });
 });
 
 router.use((error, req, res, next) => {

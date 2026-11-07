@@ -260,6 +260,16 @@ class SqliteDatabase {
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
       CREATE INDEX IF NOT EXISTS idx_purchase_proofs_order ON purchase_payment_proofs(purchase_order_id, created_at, id);
+      CREATE TABLE IF NOT EXISTS purchase_order_messages (
+        id TEXT PRIMARY KEY,
+        purchase_order_id TEXT NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+        actor_type TEXT NOT NULL CHECK (actor_type IN ('customer', 'admin')),
+        actor_id TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_purchase_messages_order
+        ON purchase_order_messages(purchase_order_id, created_at, id);
     `);
     this.db.prepare(`
       INSERT INTO purchase_order_events (id, purchase_order_id, event_type, label, actor_type, created_at)
@@ -1291,6 +1301,7 @@ class SqliteDatabase {
           ELSE order_status
         END AS orderStatus,
         admin_hidden_at AS adminHiddenAt,
+        customer_hidden_at AS customerHiddenAt,
         payment_proof AS paymentProof, created_at AS createdAt,
         updated_at AS updatedAt,
         (
@@ -1401,6 +1412,39 @@ class SqliteDatabase {
       WHERE purchase_order_id = ?
       ORDER BY created_at ASC, rowid ASC
     `).all(id);
+  }
+
+  getPurchaseOrderMessages(id) {
+    return this.db.prepare(`
+      SELECT id, actor_type AS actorType, message,
+        created_at AS createdAt
+      FROM purchase_order_messages
+      WHERE purchase_order_id = ?
+      ORDER BY created_at ASC, rowid ASC
+    `).all(id);
+  }
+
+  countRecentPurchaseOrderMessages(orderId, actorType, actorId, since) {
+    return this.db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM purchase_order_messages
+      WHERE purchase_order_id = ? AND actor_type = ? AND actor_id = ?
+        AND datetime(created_at) >= datetime(?)
+    `).get(orderId, actorType, actorId, since).count;
+  }
+
+  createPurchaseOrderMessage({ id, orderId, actorType, actorId, message }) {
+    this.db.prepare(`
+      INSERT INTO purchase_order_messages
+        (id, purchase_order_id, actor_type, actor_id, message)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, orderId, actorType, actorId, message);
+    return this.db.prepare(`
+      SELECT id, actor_type AS actorType, message,
+        created_at AS createdAt
+      FROM purchase_order_messages
+      WHERE id = ?
+    `).get(id);
   }
 
   getPurchasePaymentProofHistory(id) {
