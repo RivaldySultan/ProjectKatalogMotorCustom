@@ -9,10 +9,11 @@ import {
   getProductBuildCode,
   getProductBuildName,
   getProductIndex,
+  getProductSpecifications,
 } from '../lib/products';
-import { getWhatsAppLink } from '../lib/whatsapp';
 import { usePageTitle } from '../lib/usePageTitle';
 import { CONSULTATION_FORM_ID, getConsultationPath } from '../lib/router';
+import WhatsAppOrderForm from '../components/ui/WhatsAppOrderForm';
 import './ProductDetailPage.css';
 
 const STAGES = [
@@ -21,13 +22,6 @@ const STAGES = [
   { number: '03', title: 'Build & assembly', description: 'Fabrication, assembly, and finishing based on the agreed concept.' },
   { number: '04', title: 'Final inspection', description: 'Functional checks, adjustments, and handover.' },
 ];
-
-const SILVERLINE_EXAMPLE_SPECS = {
-  engine: '125 cc · 1 cylinder · 4-stroke',
-  transmission: 'Manual · 5-speed',
-  cockpit: 'Clip-on handlebars · compact instrument panel',
-  finishing: 'Single seat · brushed silver',
-};
 
 export default function ProductDetailPage({ productId, products, isLoading, error }) {
   const index = getProductIndex(products, productId);
@@ -79,12 +73,6 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
   const buildCode = getProductBuildCode(product) || String(product.id).toUpperCase();
   const buildName = getProductBuildName(product) || 'Custom build';
   const basis = product.basis || getProductBasis(product);
-  const whatsappOrderLink = getWhatsAppLink([
-    'Hello Ruka Motorworks, I am interested in ordering this build via WhatsApp.',
-    `Build: ${buildName}`,
-    basis ? `Motorcycle basis: ${basis}` : '',
-    `Price: ${formatRupiah(product.price)}`,
-  ].filter(Boolean).join('\n'));
   const isSilverlineExample = String(product.id) === 'prod_1';
   const usesPdfSpecExample = isSilverlineExample
     && ['engine', 'transmission', 'cockpit', 'finishing'].some((field) => !product[field]);
@@ -92,37 +80,7 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
     || (isSilverlineExample
       ? 'Clean lines. A crouched stance. A café racer interpretation of an engine you already know.'
       : 'Build details will be confirmed during consultation.');
-  const confirmedLater = 'To be confirmed during consultation';
-  const fixedSpecifications = String(product.fixedSpecifications || '')
-    .split(/\r?\n/)
-    .map((line) => {
-      const separator = line.indexOf(':');
-      return separator > 0
-        ? [line.slice(0, separator).trim(), line.slice(separator + 1).trim()]
-        : null;
-    })
-    .filter(Boolean);
-  const specs = [
-    ['Donor motorcycle', basis || confirmedLater],
-    ['Design direction', product.categoryName || confirmedLater],
-    [
-      'Engine',
-      product.engine || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.engine : confirmedLater),
-    ],
-    [
-      'Transmission',
-      product.transmission || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.transmission : confirmedLater),
-    ],
-    [
-      'Cockpit',
-      product.cockpit || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.cockpit : confirmedLater),
-    ],
-    [
-      'Seat & finish',
-      product.finishing || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.finishing : confirmedLater),
-    ],
-    ...fixedSpecifications,
-  ];
+  const specs = getProductSpecifications(product);
 
   return (
     <main id="main-content" tabIndex={-1}>
@@ -174,15 +132,11 @@ export default function ProductDetailPage({ productId, products, isLoading, erro
                 >
                   Order via Web
                 </Button>
-                <Button
-                  href={whatsappOrderLink}
-                  icon={<Icon name="arrow-up-right" size={18} />}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  variant="outline"
-                >
-                  Order via WhatsApp
-                </Button>
+                <WhatsAppOrderForm
+                  className="rm-button rm-button--outline rm-price-bar__whatsapp-order"
+                  product={product}
+                  specifications={specs}
+                />
               </>
             ) : (
               <p className="rm-price-bar__unavailable">

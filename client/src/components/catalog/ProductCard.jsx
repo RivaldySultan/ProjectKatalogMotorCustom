@@ -5,10 +5,11 @@ import {
   getProductBasis,
   getProductBuildCode,
   getProductBuildName,
+  getProductSpecifications,
 } from '../../lib/products';
 import Icon from '../ui/Icon';
 import Link from '../ui/Link';
-import { getWhatsAppLink } from '../../lib/whatsapp';
+import WhatsAppOrderForm from '../ui/WhatsAppOrderForm';
 import './ProductCard.css';
 
 export default function ProductCard({ product, index = 0 }) {
@@ -18,13 +19,6 @@ export default function ProductCard({ product, index = 0 }) {
   const buildCode = getProductBuildCode(product);
   const buildName = getProductBuildName(product);
   const basis = getProductBasis(product);
-  const whatsappOrderLink = getWhatsAppLink([
-    'Hello Ruka Motorworks, I am interested in ordering this build via WhatsApp.',
-    `Product: ${product.name}`,
-    `Build: ${buildName || product.name}`,
-    basis ? `Motorcycle basis: ${basis}` : '',
-    `Price: ${formatRupiah(product.price)}`,
-  ].filter(Boolean).join('\n'));
   const canPurchase = product.canPurchase === true || Number(product.canPurchase) === 1;
 
   return (
@@ -74,15 +68,11 @@ export default function ProductCard({ product, index = 0 }) {
         <div className="rm-product-card__actions">
           {canPurchase ? (
             <>
-              <a
-                className="rm-product-card__action rm-product-card__action--whatsapp"
-                href={whatsappOrderLink}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                <span>Order via WhatsApp</span>
-                <Icon name="arrow-up-right" size={18} />
-              </a>
+              <WhatsAppOrderForm
+                className="rm-product-card__action rm-product-card__action--whatsapp rm-wa-order__trigger"
+                product={product}
+                specifications={getProductSpecifications(product)}
+              />
               <Link
                 className="rm-product-card__action rm-product-card__action--purchase"
                 to={`/checkout/${encodeURIComponent(product.id)}`}

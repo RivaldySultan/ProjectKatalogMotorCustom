@@ -34,6 +34,13 @@ const BUILD_PRESENTATION = {
   },
 };
 
+const SILVERLINE_EXAMPLE_SPECS = {
+  engine: '125 cc · 1 cylinder · 4-stroke',
+  transmission: 'Manual · 5-speed',
+  cockpit: 'Clip-on handlebars · compact instrument panel',
+  finishing: 'Single seat · brushed silver',
+};
+
 function getBuildPresentation(product) {
   const knownBuild = BUILD_PRESENTATION[String(product.id)];
   if (knownBuild) return knownBuild;
@@ -58,6 +65,30 @@ export function getProductBasis(product) {
     || product.motorcycle
     || getBuildPresentation(product).basis
     || '';
+}
+
+export function getProductSpecifications(product) {
+  const isSilverlineExample = String(product.id) === 'prod_1';
+  const confirmedLater = 'To be confirmed during consultation';
+  const fixedSpecifications = String(product.fixedSpecifications || '')
+    .split(/\r?\n/)
+    .map((line) => {
+      const separator = line.indexOf(':');
+      return separator > 0
+        ? [line.slice(0, separator).trim(), line.slice(separator + 1).trim()]
+        : null;
+    })
+    .filter(Boolean);
+
+  return [
+    ['Donor motorcycle', getProductBasis(product) || confirmedLater],
+    ['Design direction', product.categoryName || confirmedLater],
+    ['Engine', product.engine || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.engine : confirmedLater)],
+    ['Transmission', product.transmission || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.transmission : confirmedLater)],
+    ['Cockpit', product.cockpit || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.cockpit : confirmedLater)],
+    ['Seat & finish', product.finishing || (isSilverlineExample ? SILVERLINE_EXAMPLE_SPECS.finishing : confirmedLater)],
+    ...fixedSpecifications,
+  ];
 }
 
 export function isProductActive(product) {
