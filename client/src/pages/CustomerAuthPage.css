@@ -53,6 +53,16 @@
   width: 100%;
 }
 
+.rm-customer-auth__form select {
+  background: var(--rm-surface-raised);
+  border: 1px solid var(--rm-border);
+  color: var(--rm-text);
+  font: inherit;
+  min-height: 46px;
+  padding: 10px 12px;
+  width: 100%;
+}
+
 .rm-customer-auth__password {
   display: flex;
   gap: 8px;

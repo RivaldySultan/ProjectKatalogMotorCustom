@@ -3,6 +3,7 @@ import Link from '../components/ui/Link';
 import { establishCustomerSession, customerRequest } from '../lib/customerAuth';
 import { navigate } from '../lib/router';
 import { usePageTitle } from '../lib/usePageTitle';
+import { SECURITY_QUESTIONS } from '../lib/securityQuestions';
 import './CustomerAuthPage.css';
 
 const EMPTY_VALUES = {
@@ -11,6 +12,8 @@ const EMPTY_VALUES = {
   phone: '',
   password: '',
   confirmPassword: '',
+  securityQuestion: '',
+  securityAnswer: '',
   privacyConsent: false,
 };
 
@@ -82,7 +85,7 @@ export default function CustomerAuthPage({ mode }) {
         <label>
           <span>Password</span>
           <span className="rm-customer-auth__password">
-            <input autoComplete={isRegister ? 'new-password' : 'current-password'} onChange={(event) => setField('password', event.target.value)} required type={showPassword ? 'text' : 'password'} value={values.password} />
+            <input autoComplete={isRegister ? 'new-password' : 'current-password'} maxLength={isRegister ? 1024 : undefined} minLength={isRegister ? 8 : undefined} onChange={(event) => setField('password', event.target.value)} required type={showPassword ? 'text' : 'password'} value={values.password} />
             <button onClick={() => setShowPassword((visible) => !visible)} type="button">{showPassword ? 'Hide' : 'Show'}</button>
           </span>
         </label>
@@ -90,7 +93,20 @@ export default function CustomerAuthPage({ mode }) {
           <>
             <label>
               <span>Confirm password</span>
-              <input autoComplete="new-password" onChange={(event) => setField('confirmPassword', event.target.value)} required type={showPassword ? 'text' : 'password'} value={values.confirmPassword} />
+              <input autoComplete="new-password" maxLength={1024} minLength={8} onChange={(event) => setField('confirmPassword', event.target.value)} required type={showPassword ? 'text' : 'password'} value={values.confirmPassword} />
+            </label>
+            <label>
+              <span>Security question</span>
+              <select onChange={(event) => setField('securityQuestion', event.target.value)} required value={values.securityQuestion}>
+                <option value="">Choose a security question</option>
+                {SECURITY_QUESTIONS.map((question) => (
+                  <option key={question.id} value={question.id}>{question.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Security answer</span>
+              <input autoComplete="off" maxLength={72} onChange={(event) => setField('securityAnswer', event.target.value)} required value={values.securityAnswer} />
             </label>
             <label className="rm-customer-auth__consent">
               <input checked={values.privacyConsent} onChange={(event) => setField('privacyConsent', event.target.checked)} required type="checkbox" />

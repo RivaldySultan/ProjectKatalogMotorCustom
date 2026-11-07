@@ -101,16 +101,16 @@ export function parseLocation(location) {
     };
   }
 
-  if (pathname === '/admin' || pathname === '/admin/dashboard') {
+  if (pathname === '/admin') {
+    return { ...base, name: 'admin-login' };
+  }
+
+  if (pathname === '/admin/dashboard') {
     return { ...base, name: 'admin' };
   }
 
   if (pathname === '/admin/login') {
     return { ...base, name: 'admin-login' };
-  }
-
-  if (pathname === '/admin/forgot-password') {
-    return { ...base, name: 'password-reset', accountType: 'admin' };
   }
 
   if (pathname === '/admin/catalog') {

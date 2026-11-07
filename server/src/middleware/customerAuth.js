@@ -57,7 +57,7 @@ export function authenticateCustomer(req, res, next) {
     ) {
       return res.status(401).json({ success: false, message: "The customer session is no longer active." });
     }
-    const { passwordHash, isActive, ...profile } = customer;
+    const { passwordHash, securityAnswerHash, isActive, ...profile } = customer;
     req.customer = profile;
     req.customerSessionId = claims.jti;
     return next();

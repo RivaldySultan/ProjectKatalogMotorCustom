@@ -70,8 +70,7 @@ function App() {
   }
 
   if (route.name === 'password-reset') {
-    const page = <PasswordResetPage accountType={route.accountType} />;
-    return route.accountType === 'admin' ? page : <PublicLayout>{page}</PublicLayout>;
+    return <PublicLayout><PasswordResetPage /></PublicLayout>;
   }
 
   if (route.name === 'customer-purchase') {

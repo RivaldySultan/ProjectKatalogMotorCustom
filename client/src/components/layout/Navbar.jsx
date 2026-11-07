@@ -143,7 +143,6 @@ export default function Navbar() {
           ) : (
             <>
               <Link className="rm-navbar__admin-link" to="/login">Log In / Register</Link>
-              <Link className="rm-navbar__admin-link" to="/admin/login">Admin</Link>
             </>
           )}
 
@@ -201,9 +200,6 @@ export default function Navbar() {
             <>
               <Link className="rm-navbar__panel-link rm-navbar__admin-link-mobile" onClick={closeMenu} to="/login">
                 <span>Log In / Register</span><Icon name="arrow-up-right" size={16} />
-              </Link>
-              <Link className="rm-navbar__panel-link rm-navbar__admin-link-mobile" onClick={closeMenu} to="/admin/login">
-                <span>Admin Log In</span><Icon name="arrow-up-right" size={16} />
               </Link>
             </>
           )}

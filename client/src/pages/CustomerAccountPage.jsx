@@ -3,6 +3,7 @@ import Link from '../components/ui/Link';
 import { customerRequest, useCustomerSession, establishCustomerSession } from '../lib/customerAuth';
 import { formatRupiah, getCatalogProductImage } from '../lib/products';
 import { usePageTitle } from '../lib/usePageTitle';
+import { SECURITY_QUESTIONS } from '../lib/securityQuestions';
 import OrderChat from '../components/ui/OrderChat';
 import './CustomerAccountPage.css';
 
@@ -108,6 +109,23 @@ function ProfilePage({ user }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
+  const [securityQuestion, setSecurityQuestion] = useState('');
+  const [securityAnswer, setSecurityAnswer] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [securityError, setSecurityError] = useState('');
+  const [securityNotice, setSecurityNotice] = useState('');
+  const [savingSecurity, setSavingSecurity] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    customerRequest('/api/customers/me/security-question')
+      .then((result) => {
+        if (!active) return;
+        if (!result.ok) setSecurityError(result.message || 'Security question could not be loaded.');
+        else setSecurityQuestion(result.data.securityQuestion || '');
+      });
+    return () => { active = false; };
+  }, []);
 
   const save = async (event) => {
     event.preventDefault();
@@ -128,37 +146,99 @@ function ProfilePage({ user }) {
     setNotice('Profile updated.');
   };
 
+  const saveSecurityQuestion = async (event) => {
+    event.preventDefault();
+    setSavingSecurity(true);
+    setSecurityError('');
+    setSecurityNotice('');
+    const result = await customerRequest('/api/customers/me/security-question', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, securityQuestion, securityAnswer }),
+    });
+    setSavingSecurity(false);
+    if (!result.ok) {
+      setSecurityError(result.message || 'Security question could not be saved.');
+      return;
+    }
+    setSecurityQuestion(result.data.securityQuestion);
+    setSecurityAnswer('');
+    setCurrentPassword('');
+    setSecurityNotice('Security question saved. You can use it to reset your password.');
+  };
+
   return (
-    <section className="rm-account__panel">
-      <div className="rm-account__panel-heading">
-        <div><p className="rm-meta">CUSTOMER INFORMATION</p><h2>My Profile</h2></div>
-        {!editing ? <button className="rm-account__secondary" onClick={() => setEditing(true)} type="button">Edit Profile</button> : null}
-      </div>
-      {editing ? (
-        <form className="rm-account__form" onSubmit={save}>
-          <label><span>Full name</span><input autoComplete="name" maxLength={120} onChange={(event) => setValues((current) => ({ ...current, fullName: event.target.value }))} required value={values.fullName} /></label>
-          <label><span>Email</span><input autoComplete="email" maxLength={254} onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))} required type="email" value={values.email} /></label>
-          <label><span>WhatsApp number</span><input autoComplete="tel" maxLength={24} onChange={(event) => setValues((current) => ({ ...current, phone: event.target.value }))} required type="tel" value={values.phone} /></label>
-          {error ? <p className="rm-account__error" role="alert">{error}</p> : null}
+    <>
+      <section className="rm-account__panel">
+        <div className="rm-account__panel-heading">
+          <div><p className="rm-meta">CUSTOMER INFORMATION</p><h2>My Profile</h2></div>
+          {!editing ? <button className="rm-account__secondary" onClick={() => setEditing(true)} type="button">Edit Profile</button> : null}
+        </div>
+        {editing ? (
+          <form className="rm-account__form" onSubmit={save}>
+            <label><span>Full name</span><input autoComplete="name" maxLength={120} onChange={(event) => setValues((current) => ({ ...current, fullName: event.target.value }))} required value={values.fullName} /></label>
+            <label><span>Email</span><input autoComplete="email" maxLength={254} onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))} required type="email" value={values.email} /></label>
+            <label><span>WhatsApp number</span><input autoComplete="tel" maxLength={24} onChange={(event) => setValues((current) => ({ ...current, phone: event.target.value }))} required type="tel" value={values.phone} /></label>
+            {error ? <p className="rm-account__error" role="alert">{error}</p> : null}
+            <div className="rm-account__actions">
+              <button className="rm-button rm-button--primary" disabled={saving} type="submit">{saving ? 'Saving...' : 'Save Profile'}</button>
+              <button className="rm-account__secondary" onClick={() => {
+                setValues({ fullName: user.fullName || '', email: user.email || '', phone: user.phone || '' });
+                setEditing(false);
+                setError('');
+              }} type="button">Cancel</button>
+            </div>
+          </form>
+        ) : (
+          <dl className="rm-account__fields">
+            <div><dt>Full name</dt><dd>{user.fullName}</dd></div>
+            <div><dt>Email</dt><dd>{user.email}</dd></div>
+            <div><dt>WhatsApp number</dt><dd>{user.phone}</dd></div>
+            <div><dt>Joined</dt><dd>{formattedDate(user.createdAt)}</dd></div>
+          </dl>
+        )}
+        {notice ? <p className="rm-account__notice" role="status">{notice}</p> : null}
+      </section>
+
+      <section className="rm-account__panel">
+        <div className="rm-account__panel-heading">
+          <div>
+            <p className="rm-meta">ACCOUNT RECOVERY</p>
+            <h2>Security Question</h2>
+          </div>
+        </div>
+        <p className="rm-account__muted">
+          {securityQuestion
+            ? 'A security question is saved. You can update it after confirming your current password.'
+            : 'Set a security question so you can reset your password if you forget it.'}
+        </p>
+        <form className="rm-account__form" onSubmit={saveSecurityQuestion}>
+          <label>
+            <span>Security question</span>
+            <select onChange={(event) => setSecurityQuestion(event.target.value)} required value={securityQuestion}>
+              <option value="">Choose a security question</option>
+              {SECURITY_QUESTIONS.map((question) => (
+                <option key={question.id} value={question.id}>{question.label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Security answer</span>
+            <input autoComplete="off" maxLength={72} onChange={(event) => setSecurityAnswer(event.target.value)} required value={securityAnswer} />
+          </label>
+          <label>
+            <span>Current password</span>
+            <input autoComplete="current-password" onChange={(event) => setCurrentPassword(event.target.value)} required type="password" value={currentPassword} />
+          </label>
+          {securityError ? <p className="rm-account__error" role="alert">{securityError}</p> : null}
           <div className="rm-account__actions">
-            <button className="rm-button rm-button--primary" disabled={saving} type="submit">{saving ? 'Saving...' : 'Save Profile'}</button>
-            <button className="rm-account__secondary" onClick={() => {
-              setValues({ fullName: user.fullName || '', email: user.email || '', phone: user.phone || '' });
-              setEditing(false);
-              setError('');
-            }} type="button">Cancel</button>
+            <button className="rm-button rm-button--primary rm-account__security-submit" disabled={savingSecurity} type="submit">
+              {savingSecurity ? 'Saving...' : securityQuestion ? 'Update Security Question' : 'Save Security Question'}
+            </button>
           </div>
         </form>
-      ) : (
-        <dl className="rm-account__fields">
-          <div><dt>Full name</dt><dd>{user.fullName}</dd></div>
-          <div><dt>Email</dt><dd>{user.email}</dd></div>
-          <div><dt>WhatsApp number</dt><dd>{user.phone}</dd></div>
-          <div><dt>Joined</dt><dd>{formattedDate(user.createdAt)}</dd></div>
-        </dl>
-      )}
-      {notice ? <p className="rm-account__notice" role="status">{notice}</p> : null}
-    </section>
+        {securityNotice ? <p className="rm-account__notice" role="status">{securityNotice}</p> : null}
+      </section>
+    </>
   );
 }
 

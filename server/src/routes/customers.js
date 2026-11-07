@@ -9,11 +9,11 @@ import { authenticateCustomer, CUSTOMER_SESSION_COOKIE } from "../middleware/cus
 import { JWT_SECRET } from "../middleware/auth.js";
 import { getPaymentInstructions } from "../services/paymentService.js";
 import {
-  finishPasswordReset,
-  isWhatsAppOtpConfigured,
-  normalizeWhatsAppNumber,
-  sendPasswordResetOtp,
-} from "../services/passwordResetService.js";
+  finishCustomerSecurityPasswordReset,
+  normalizeSecurityAnswer,
+  SECURITY_QUESTION_IDS,
+  verifyCustomerSecurityAnswer,
+} from "../services/securityQuestionService.js";
 
 const router = express.Router();
 
@@ -65,6 +65,20 @@ function validateProfile({ fullName, email, phone }) {
   return "";
 }
 
+function validateSecurityQuestion(questionId, answer) {
+  if (typeof questionId !== "string" || !SECURITY_QUESTION_IDS.has(questionId)) {
+    return "Choose a valid security question.";
+  }
+  if (
+    typeof answer !== "string"
+    || !normalizeSecurityAnswer(answer)
+    || Buffer.byteLength(normalizeSecurityAnswer(answer), "utf8") > 72
+  ) {
+    return "Security answer is required and must be at most 72 bytes.";
+  }
+  return "";
+}
+
 function safeProfile(customer) {
   return {
     id: customer.id,
@@ -111,8 +125,16 @@ router.post("/register", async (req, res) => {
   const body = req.body || {};
   const validationError = validateProfile(body);
   if (validationError) return res.status(400).json({ success: false, message: validationError });
-  if (typeof body.password !== "string" || !body.password) {
-    return res.status(400).json({ success: false, message: "Password is required." });
+  const securityQuestionError = validateSecurityQuestion(body.securityQuestion, body.securityAnswer);
+  if (securityQuestionError) {
+    return res.status(400).json({ success: false, message: securityQuestionError });
+  }
+  if (
+    typeof body.password !== "string"
+    || Buffer.byteLength(body.password, "utf8") < 8
+    || Buffer.byteLength(body.password, "utf8") > 1024
+  ) {
+    return res.status(400).json({ success: false, message: "Password must be 8–1024 bytes." });
   }
   if (body.password !== body.confirmPassword) {
     return res.status(400).json({ success: false, message: "Password confirmation does not match." });
@@ -140,6 +162,8 @@ router.post("/register", async (req, res) => {
       email,
       phone,
       passwordHash: await hashCustomerPassword(body.password),
+      securityQuestion: body.securityQuestion,
+      securityAnswerHash: await bcrypt.hash(normalizeSecurityAnswer(body.securityAnswer), 10),
     });
     const session = createCustomerToken(customer);
     setCustomerCookie(res, session.token);
@@ -180,44 +204,52 @@ router.post("/login", async (req, res) => {
   });
 });
 
-router.post("/forgot-password", async (req, res) => {
-  const phone = normalizeWhatsAppNumber(req.body?.phone);
-  if (!phone) {
-    return res.status(400).json({ success: false, message: "Enter a valid WhatsApp number." });
-  }
-  if (!isWhatsAppOtpConfigured()) {
-    return res.status(503).json({
+router.post("/forgot-password/verify", async (req, res) => {
+  const { email, questionId, answer } = req.body || {};
+  const normalizedEmail = normalizeEmail(email);
+  if (
+    typeof email !== "string"
+    || normalizedEmail.length > 254
+    || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+    || typeof questionId !== "string"
+    || !SECURITY_QUESTION_IDS.has(questionId)
+    || typeof answer !== "string"
+    || !normalizeSecurityAnswer(answer)
+    || Buffer.byteLength(normalizeSecurityAnswer(answer), "utf8") > 72
+  ) {
+    return res.status(400).json({
       success: false,
-      message: "WhatsApp OTP delivery is not configured on the server.",
+      message: "The information could not be verified. Check your details and try again.",
     });
   }
 
   try {
-    const customers = db.getActiveCustomersByPhone(phone);
-    if (customers.length === 1) {
-      const [customer] = customers;
-      await sendPasswordResetOtp({ accountType: "customer", accountId: customer.id, phone });
-    }
-    return res.status(202).json({
-      success: true,
-      data: {
-        message: "If an active customer account uses this number, a reset code will be sent via WhatsApp.",
-      },
+    const result = await verifyCustomerSecurityAnswer({
+      email: normalizedEmail,
+      questionId,
+      answer,
+      ipAddress: req.ip || req.socket.remoteAddress,
     });
+    if (!result.ok) {
+      return res.status(400).json({
+        success: false,
+        message: "The information could not be verified. Check your details and try again.",
+      });
+    }
+    return res.json({ success: true, data: { resetToken: result.token } });
   } catch (error) {
-    console.error("Failed to deliver the customer password reset OTP:", error.message);
-    return res.status(502).json({
+    console.error("Failed to verify the customer security answer:", error);
+    return res.status(500).json({
       success: false,
-      message: "The WhatsApp OTP could not be sent. Please try again later.",
+      message: "The information could not be verified. Please try again later.",
     });
   }
 });
 
-router.post("/reset-password", async (req, res) => {
-  const phone = normalizeWhatsAppNumber(req.body?.phone);
-  const { otp, password, confirmPassword } = req.body || {};
-  if (!phone || typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
-    return res.status(400).json({ success: false, message: "Enter the WhatsApp number and six-digit code." });
+router.post("/forgot-password/reset", async (req, res) => {
+  const { resetToken, password, confirmPassword } = req.body || {};
+  if (typeof resetToken !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(resetToken)) {
+    return res.status(400).json({ success: false, message: "Verify your security answer before changing the password." });
   }
   if (typeof password !== "string" || Buffer.byteLength(password, "utf8") < 8 || Buffer.byteLength(password, "utf8") > 1024) {
     return res.status(400).json({ success: false, message: "Password must be 8–1024 bytes." });
@@ -226,35 +258,70 @@ router.post("/reset-password", async (req, res) => {
     return res.status(400).json({ success: false, message: "Password confirmation does not match." });
   }
 
-  const customers = db.getActiveCustomersByPhone(phone);
-  if (customers.length !== 1) {
-    return res.status(400).json({ success: false, message: "The code is invalid or expired. Request a new code." });
-  }
-  const [customer] = customers;
-
   try {
-    const result = finishPasswordReset({
-      accountType: "customer",
-      accountId: customer.id,
-      phone,
-      otp,
+    const result = finishCustomerSecurityPasswordReset({
+      token: resetToken,
       passwordHash: await hashCustomerPassword(password),
     });
     if (result !== "success") {
-      return res.status(400).json({ success: false, message: "The code is invalid or expired. Request a new code." });
+      return res.status(400).json({
+        success: false,
+        message: "Your verification has expired. Verify your security answer again.",
+      });
     }
     return res.json({
       success: true,
       data: { message: "Password reset successful. Please log in with your new password." },
     });
   } catch (error) {
-    console.error("Failed to reset the customer password:", error);
+    console.error("Failed to reset the customer password using a security question:", error);
     return res.status(500).json({ success: false, message: "The password could not be reset." });
   }
 });
 
 router.get("/me", authenticateCustomer, (req, res) => {
   return res.json({ success: true, data: safeProfile(req.customer) });
+});
+
+router.get("/me/security-question", authenticateCustomer, (req, res) => {
+  const customer = db.getCustomerById(req.customer.id);
+  return res.json({
+    success: true,
+    data: { securityQuestion: customer?.securityQuestion || null },
+  });
+});
+
+router.put("/me/security-question", authenticateCustomer, async (req, res) => {
+  const { currentPassword, securityQuestion, securityAnswer } = req.body || {};
+  const validationError = validateSecurityQuestion(securityQuestion, securityAnswer);
+  if (validationError) return res.status(400).json({ success: false, message: validationError });
+  if (typeof currentPassword !== "string" || !currentPassword) {
+    return res.status(400).json({ success: false, message: "Enter your current password to confirm this change." });
+  }
+
+  const customer = db.getCustomerById(req.customer.id);
+  const passwordMatches = customer
+    ? await verifyCustomerPassword(currentPassword, customer.passwordHash)
+    : false;
+  if (!passwordMatches) {
+    return res.status(401).json({ success: false, message: "Current password is incorrect." });
+  }
+
+  try {
+    const updated = db.updateCustomerSecurityQuestion(customer.id, {
+      securityQuestion,
+      securityAnswerHash: await bcrypt.hash(normalizeSecurityAnswer(securityAnswer), 10),
+    });
+    if (!updated) return res.status(404).json({ success: false, message: "Customer account not found." });
+    return res.json({
+      success: true,
+      data: { securityQuestion },
+      message: "Security question saved.",
+    });
+  } catch (error) {
+    console.error("Failed to save the customer security question:", error);
+    return res.status(500).json({ success: false, message: "The security question could not be saved." });
+  }
 });
 
 router.patch("/me", authenticateCustomer, (req, res) => {

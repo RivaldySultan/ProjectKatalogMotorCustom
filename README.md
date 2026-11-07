@@ -51,7 +51,7 @@ The API and admin setup script load `server/.env` relative to their source files
 
 The bootstrap command is safe to run repeatedly. It creates only one account, updates credentials when the configured email matches an existing account, and refuses to create a second account with a different email. Passwords are stored in the database only as bcrypt hashes.
 
-To enable admin password recovery, set `ADMIN_PHONE` to the admin's own WhatsApp number and run the bootstrap command again. Configure a WhatsApp Cloud API phone number ID, access token, and an approved message template in `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, and `WHATSAPP_OTP_TEMPLATE`. The template must use the language in `WHATSAPP_OTP_LANGUAGE` and include one body text placeholder (`{{1}}`) for the six-digit code. Generate a separate random secret for `PASSWORD_RESET_SECRET`; if omitted, the configured `JWT_SECRET` is used. Recovery is not enabled until all required values and an approved WhatsApp template are configured. Never put real API credentials in `.env.example` or commit them.
+Customer password recovery uses the account's security question. The answer is bcrypt-hashed, and `PASSWORD_RESET_SECRET` (or `JWT_SECRET` when not set) protects short-lived reset grants. Admin password recovery is not available.
 
 The existing development database has one active admin account with the email `rukamotor@gmail.com`. Its existing password is not displayed or provided. After setting your password and `JWT_SECRET` in `server/.env`, run the bootstrap command, then `npm run dev`. Open `http://localhost:5173/admin/login` and sign in with the email and password from your local environment. Login issues an admin-role JWT; the dashboard and catalog mutation endpoints verify the role, identity, and active account status in the database.
 
@@ -110,8 +110,6 @@ Admin endpoints require admin authentication:
 - `PATCH /api/purchases/admin/:id/status` — updates progress after payment is confirmed.
 - `GET /api/purchases/admin/:id/messages` and `POST /api/purchases/admin/:id/messages` — read and send messages for an order.
 
-Admin password recovery uses `POST /api/auth/forgot-password` and `POST /api/auth/reset-password`; the destination is the admin WhatsApp number configured in `ADMIN_PHONE`.
-
 Customer order chat endpoints are `GET /api/purchases/:id/messages` and `POST /api/purchases/:id/messages`. Supply the order access token in `X-Order-Access-Token`, or use the signed-in customer session for an order linked to that account.
 
 Consultation requests remain at `/admin/orders` and do not become purchase transactions. No migration removes or changes existing consultation data.
@@ -122,15 +120,18 @@ Customers can register at `/register`, log in at `/login`, view their profile at
 
 Customer authentication uses a signed session cookie that is `HttpOnly`, `SameSite=Lax`, and valid for 24 hours. Sessions recorded in `customer_sessions` can be revoked on logout. The customer cookie and role are not used by admin middleware.
 
-Customers and admins can start password recovery at `/lupa-password` and `/admin/forgot-password`. The six-digit WhatsApp code expires after 10 minutes, can be requested once per minute per number, and allows at most five verification attempts. Codes are stored only as keyed hashes and are consumed after a successful reset. A customer password reset revokes that customer's active sessions; an admin password reset invalidates existing admin tokens. Customer account WhatsApp numbers must be unique to be eligible for recovery.
+Customers can start password recovery at `/lupa-password` using the security question registered on their account. A successful password reset revokes that customer's active sessions. Password recovery via WhatsApp is not available.
 
-The `customers` table stores profiles, bcrypt hashes, and privacy consent. `purchase_orders.customer_id` links account orders to their owner; this value is always determined from the server session, not checkout input. Claiming a guest order requires its access token and an email address and WhatsApp number matching the account.
+Customer registration also requires a security question and answer. From `/akun`, a signed-in customer can add or update the question after confirming the current password; this lets existing accounts enroll without losing account or order data. To recover with a security question, customers enter their email, select the question they chose during registration, and enter the answer. The server does not reveal the stored question before verification, so the customer must remember which question they chose. Answers are normalized and stored as bcrypt hashes. Verification allows five attempts per email and 30 per IP in a 15-minute window; a successful answer creates a one-time reset grant that expires after 10 minutes. A successful password reset revokes active customer sessions and any other unused reset grants. Security questions can be guessed or discovered elsewhere; customers should use an answer that is not publicly known.
+
+The `customers` table stores profiles, bcrypt password hashes, security-question IDs, and bcrypt security-answer hashes; hashes are never returned by API responses. On server startup, the existing database is migrated by adding nullable security-question columns and creating reset-attempt/challenge tables; no manual SQL command is required. Existing customer accounts and order data are preserved; existing customers set a question from their signed-in profile. `purchase_orders.customer_id` links account orders to their owner; this value is always determined from the server session, not checkout input. Claiming a guest order requires its access token and an email address and WhatsApp number matching the account.
 
 Customer account endpoints:
 
 - `POST /api/customers/register` and `POST /api/customers/login` — validate data, hash passwords, and create sessions.
-- `POST /api/customers/forgot-password` and `POST /api/customers/reset-password` — send a recovery code to the registered WhatsApp number and verify it before changing the password.
+- `POST /api/customers/forgot-password/verify` and `POST /api/customers/forgot-password/reset` — verify the selected security question and answer, then use the short-lived reset grant to set a new password.
 - `POST /api/customers/logout`, `GET /api/customers/me`, and `PATCH /api/customers/me` — revoke a session, read a profile, and update the signed-in customer's profile.
+- `GET /api/customers/me/security-question` and `PUT /api/customers/me/security-question` — read or update the signed-in customer's question after confirming the current password.
 - `GET /api/customers/orders` and `GET /api/customers/orders/:id` — list, filter, paginate, and view orders belonging to the active session.
 - `POST /api/customers/claims/:id` — link a guest order after verifying its access token and contact information.
 - `GET /api/customers/orders/:id/proofs/:proofId` — view proof after verifying ownership.

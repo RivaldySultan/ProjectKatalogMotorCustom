@@ -123,7 +123,6 @@ class SqliteDatabase {
       );
     `);
     this.ensureAdminColumns();
-    this.ensurePasswordResetTable();
 
     // Indexes
     this.db.exec(`
@@ -300,6 +299,8 @@ class SqliteDatabase {
         email TEXT NOT NULL COLLATE NOCASE UNIQUE,
         phone TEXT NOT NULL,
         password_hash TEXT NOT NULL,
+        security_question TEXT,
+        security_answer_hash TEXT,
         is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
         privacy_consent_at TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -313,7 +314,33 @@ class SqliteDatabase {
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
       CREATE INDEX IF NOT EXISTS idx_customer_sessions_customer ON customer_sessions(customer_id, expires_at);
+      CREATE TABLE IF NOT EXISTS customer_password_reset_attempts (
+        subject_hash TEXT PRIMARY KEY,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        window_started_at TEXT NOT NULL,
+        locked_until TEXT
+      );
+      CREATE TABLE IF NOT EXISTS customer_password_reset_challenges (
+        id TEXT PRIMARY KEY,
+        customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        consumed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_customer_password_reset_challenges_customer
+        ON customer_password_reset_challenges(customer_id, created_at DESC);
     `);
+
+    const customerColumns = new Set(
+      this.db.prepare("PRAGMA table_info(customers)").all().map((column) => column.name),
+    );
+    if (!customerColumns.has("security_question")) {
+      this.db.exec("ALTER TABLE customers ADD COLUMN security_question TEXT");
+    }
+    if (!customerColumns.has("security_answer_hash")) {
+      this.db.exec("ALTER TABLE customers ADD COLUMN security_answer_hash TEXT");
+    }
   }
   ensureProductPresentation() {
     this.db.exec(`
@@ -443,26 +470,6 @@ class SqliteDatabase {
     }
   }
 
-  ensurePasswordResetTable() {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS password_reset_otps (
-        id TEXT PRIMARY KEY,
-        account_type TEXT NOT NULL CHECK (account_type IN ('admin', 'customer')),
-        account_id TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        code_hash TEXT NOT NULL,
-        expires_at TEXT NOT NULL,
-        attempts INTEGER NOT NULL DEFAULT 0,
-        consumed_at TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-      CREATE INDEX IF NOT EXISTS idx_password_reset_lookup
-        ON password_reset_otps(account_type, account_id, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_password_reset_phone
-        ON password_reset_otps(phone, created_at DESC);
-    `);
-  }
-
   seedInitialData() {
     const seedData = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
 
@@ -575,7 +582,8 @@ class SqliteDatabase {
   getCustomerById(id) {
     return this.db.prepare(`
       SELECT id, full_name AS fullName, email, phone,
-        password_hash AS passwordHash, is_active AS isActive,
+        password_hash AS passwordHash, security_question AS securityQuestion,
+        security_answer_hash AS securityAnswerHash, is_active AS isActive,
         created_at AS createdAt, updated_at AS updatedAt
       FROM customers WHERE id = ?
     `).get(id);
@@ -584,8 +592,17 @@ class SqliteDatabase {
   getCustomerByEmail(email) {
     return this.db.prepare(`
       SELECT id, full_name AS fullName, email, phone,
-        password_hash AS passwordHash, is_active AS isActive,
+        password_hash AS passwordHash, security_question AS securityQuestion,
+        security_answer_hash AS securityAnswerHash, is_active AS isActive,
         created_at AS createdAt, updated_at AS updatedAt
+      FROM customers WHERE email = ? COLLATE NOCASE
+    `).get(email);
+  }
+
+  getCustomerSecurityQuestionByEmail(email) {
+    return this.db.prepare(`
+      SELECT id, security_question AS securityQuestion,
+        security_answer_hash AS securityAnswerHash, is_active AS isActive
       FROM customers WHERE email = ? COLLATE NOCASE
     `).get(email);
   }
@@ -599,26 +616,102 @@ class SqliteDatabase {
     `).all(phone);
   }
 
-  getPasswordResetForPhone(phone, since) {
-    return this.db.prepare(`
-      SELECT id FROM password_reset_otps
-      WHERE phone = ? AND datetime(created_at) >= datetime(?)
-      ORDER BY created_at DESC LIMIT 1
-    `).get(phone, since);
+  createCustomer({
+    id,
+    fullName,
+    email,
+    phone,
+    passwordHash,
+    securityQuestion = null,
+    securityAnswerHash = null,
+  }) {
+    this.db.prepare(`
+      INSERT INTO customers (
+        id, full_name, email, phone, password_hash,
+        security_question, security_answer_hash, privacy_consent_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(id, fullName, email, phone, passwordHash, securityQuestion, securityAnswerHash);
+    return this.getCustomerById(id);
   }
 
-  createPasswordResetOtp({ id, accountType, accountId, phone, codeHash, expiresAt }) {
+  updateCustomerSecurityQuestion(id, { securityQuestion, securityAnswerHash }) {
+    return this.db.prepare(`
+      UPDATE customers
+      SET security_question = ?, security_answer_hash = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND is_active = 1
+    `).run(securityQuestion, securityAnswerHash, id).changes > 0;
+  }
+
+  consumeCustomerPasswordResetAttempt(subjectLimits, { now, windowMs, lockMs }) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const expiredBefore = new Date(Date.parse(now) - 24 * 60 * 60 * 1000).toISOString();
+      this.db.prepare(`
+        DELETE FROM customer_password_reset_attempts
+        WHERE window_started_at < ?
+      `).run(expiredBefore);
+      const select = this.db.prepare(`
+        SELECT attempts, window_started_at AS windowStartedAt,
+          locked_until AS lockedUntil
+        FROM customer_password_reset_attempts WHERE subject_hash = ?
+      `);
+      const upsert = this.db.prepare(`
+        INSERT INTO customer_password_reset_attempts
+          (subject_hash, attempts, window_started_at, locked_until)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(subject_hash) DO UPDATE SET
+          attempts = excluded.attempts,
+          window_started_at = excluded.window_started_at,
+          locked_until = excluded.locked_until
+      `);
+      const nowMs = Date.parse(now);
+      const previousAttempts = subjectLimits.map(({ subjectHash }) => select.get(subjectHash));
+      if (previousAttempts.some((previous) => (
+        previous?.lockedUntil && Date.parse(previous.lockedUntil) > nowMs
+      ))) {
+        this.db.exec("COMMIT");
+        return false;
+      }
+
+      for (const [index, { subjectHash, maxAttempts }] of subjectLimits.entries()) {
+        const previous = previousAttempts[index];
+        const inWindow = previous
+          && nowMs - Date.parse(previous.windowStartedAt) < windowMs;
+        const attempts = inWindow ? previous.attempts + 1 : 1;
+        const windowStartedAt = inWindow ? previous.windowStartedAt : now;
+        const lockedUntil = attempts >= maxAttempts
+          ? new Date(nowMs + lockMs).toISOString()
+          : null;
+        upsert.run(subjectHash, attempts, windowStartedAt, lockedUntil);
+      }
+      this.db.exec("COMMIT");
+      return true;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  clearCustomerPasswordResetAttempts(subjectLimits) {
+    const remove = this.db.prepare(`
+      DELETE FROM customer_password_reset_attempts WHERE subject_hash = ?
+    `);
+    for (const { subjectHash } of subjectLimits) remove.run(subjectHash);
+  }
+
+  createCustomerPasswordResetChallenge({ id, customerId, tokenHash, expiresAt }) {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.db.prepare(`
-        UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP
-        WHERE account_type = ? AND account_id = ? AND consumed_at IS NULL
-      `).run(accountType, accountId);
+        UPDATE customer_password_reset_challenges
+        SET consumed_at = CURRENT_TIMESTAMP
+        WHERE customer_id = ? AND consumed_at IS NULL
+      `).run(customerId);
       this.db.prepare(`
-        INSERT INTO password_reset_otps
-          (id, account_type, account_id, phone, code_hash, expires_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(id, accountType, accountId, phone, codeHash, expiresAt);
+        INSERT INTO customer_password_reset_challenges
+          (id, customer_id, token_hash, expires_at)
+        VALUES (?, ?, ?, ?)
+      `).run(id, customerId, tokenHash, expiresAt);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -626,108 +719,60 @@ class SqliteDatabase {
     }
   }
 
-  invalidatePasswordResetOtp(id) {
-    this.db.prepare(`
-      UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND consumed_at IS NULL
-    `).run(id);
-  }
-
-  completePasswordReset({ accountType, accountId, phone, codeHash, passwordHash }) {
+  completeCustomerSecurityPasswordReset({ tokenHash, passwordHash }) {
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const otp = this.db.prepare(`
-        SELECT id, code_hash AS codeHash, expires_at AS expiresAt,
-          attempts, consumed_at AS consumedAt
-        FROM password_reset_otps
-        WHERE account_type = ? AND account_id = ? AND phone = ?
-        ORDER BY created_at DESC LIMIT 1
-      `).get(accountType, accountId, phone);
-
-      if (!otp || otp.consumedAt) {
+      const challenge = this.db.prepare(`
+        SELECT id, customer_id AS customerId, expires_at AS expiresAt,
+          consumed_at AS consumedAt
+        FROM customer_password_reset_challenges
+        WHERE token_hash = ? LIMIT 1
+      `).get(tokenHash);
+      if (!challenge || challenge.consumedAt) {
         this.db.exec("COMMIT");
         return "invalid";
       }
-
-      if (Date.parse(otp.expiresAt) <= Date.now()) {
+      if (Date.parse(challenge.expiresAt) <= Date.now()) {
         this.db.prepare(`
-          UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?
-        `).run(otp.id);
+          UPDATE customer_password_reset_challenges
+          SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?
+        `).run(challenge.id);
         this.db.exec("COMMIT");
         return "expired";
       }
 
-      if (otp.attempts >= 5) {
-        this.db.prepare(`
-          UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?
-        `).run(otp.id);
-        this.db.exec("COMMIT");
-        return "locked";
-      }
-
-      const provided = Buffer.from(codeHash, "hex");
-      const expected = Buffer.from(otp.codeHash, "hex");
-      const matches = provided.length === expected.length
-        && timingSafeEqual(provided, expected);
-
-      if (!matches) {
-        const attempts = otp.attempts + 1;
-        this.db.prepare(`
-          UPDATE password_reset_otps SET attempts = ?,
-            consumed_at = CASE WHEN ? >= 5 THEN CURRENT_TIMESTAMP ELSE consumed_at END
-          WHERE id = ?
-        `).run(attempts, attempts, otp.id);
-        this.db.exec("COMMIT");
-        return attempts >= 5 ? "locked" : "invalid";
-      }
-
       const used = this.db.prepare(`
-        UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP
+        UPDATE customer_password_reset_challenges
+        SET consumed_at = CURRENT_TIMESTAMP
         WHERE id = ? AND consumed_at IS NULL
-      `).run(otp.id);
+      `).run(challenge.id);
       if (!used.changes) {
         this.db.exec("COMMIT");
         return "invalid";
       }
-
-      if (accountType === "admin") {
-        const updated = this.db.prepare(`
-          UPDATE admins SET password = ?, auth_version = auth_version + 1
-          WHERE id = ? AND phone = ? AND is_active = 1
-        `).run(passwordHash, accountId, phone);
-        if (!updated.changes) {
-          this.db.exec("ROLLBACK");
-          return "invalid";
-        }
-      } else {
-        const updated = this.db.prepare(`
-          UPDATE customers SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ? AND phone = ? AND is_active = 1
-        `).run(passwordHash, accountId, phone);
-        if (!updated.changes) {
-          this.db.exec("ROLLBACK");
-          return "invalid";
-        }
-        this.db.prepare(`
-          UPDATE customer_sessions SET revoked_at = CURRENT_TIMESTAMP
-          WHERE customer_id = ? AND revoked_at IS NULL
-        `).run(accountId);
+      const updated = this.db.prepare(`
+        UPDATE customers SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND is_active = 1
+      `).run(passwordHash, challenge.customerId);
+      if (!updated.changes) {
+        this.db.exec("COMMIT");
+        return "invalid";
       }
 
+      this.db.prepare(`
+        UPDATE customer_sessions SET revoked_at = CURRENT_TIMESTAMP
+        WHERE customer_id = ? AND revoked_at IS NULL
+      `).run(challenge.customerId);
+      this.db.prepare(`
+        UPDATE customer_password_reset_challenges SET consumed_at = CURRENT_TIMESTAMP
+        WHERE customer_id = ? AND consumed_at IS NULL
+      `).run(challenge.customerId);
       this.db.exec("COMMIT");
       return "success";
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;
     }
-  }
-
-  createCustomer({ id, fullName, email, phone, passwordHash }) {
-    this.db.prepare(`
-      INSERT INTO customers (id, full_name, email, phone, password_hash, privacy_consent_at)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).run(id, fullName, email, phone, passwordHash);
-    return this.getCustomerById(id);
   }
 
   updateCustomerProfile(id, { fullName, email, phone }) {

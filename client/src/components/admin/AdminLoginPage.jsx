@@ -101,9 +101,6 @@ export default function AdminLoginPage({ sessionExpired = false }) {
           </button>
         </form>
 
-        <a className="rm-admin-login__back" href="/admin/forgot-password">
-          Forgot password?
-        </a>
         <a className="rm-admin-login__back" href="/">
           Back to Ruka Motorworks
         </a>

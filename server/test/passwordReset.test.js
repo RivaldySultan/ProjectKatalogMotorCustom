@@ -5,42 +5,43 @@ import os from "node:os";
 import path from "node:path";
 import { once } from "node:events";
 import { createHash } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import jwt from "jsonwebtoken";
 
 const temporaryDirectory = mkdtempSync(path.join(os.tmpdir(), "katalog-password-reset-"));
 process.env.KATALOG_DB_PATH = path.join(temporaryDirectory, "test.sqlite");
+const legacyDatabase = new DatabaseSync(process.env.KATALOG_DB_PATH);
+legacyDatabase.exec(`
+  CREATE TABLE customers (
+    id TEXT PRIMARY KEY,
+    full_name TEXT NOT NULL,
+    email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    phone TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    privacy_consent_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+legacyDatabase.prepare(`
+  INSERT INTO customers (id, full_name, email, phone, password_hash, privacy_consent_at)
+  VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+`).run("legacy-schema-customer", "Legacy Customer", "legacy-schema@example.test", "6281234567890", "existing-password-hash");
+legacyDatabase.close();
 process.env.JWT_SECRET = "test-jwt-secret-with-at-least-32-bytes";
 process.env.PASSWORD_RESET_SECRET = "test-reset-secret-with-at-least-32-bytes";
-process.env.WHATSAPP_PHONE_NUMBER_ID = "test-phone-id";
-process.env.WHATSAPP_ACCESS_TOKEN = "test-access-token";
-process.env.WHATSAPP_OTP_TEMPLATE = "password_reset_otp";
-process.env.WHATSAPP_OTP_LANGUAGE = "id";
 
 const { db } = await import("../src/db/db.js");
 const authRoutes = (await import("../src/routes/auth.js")).default;
 const customerRoutes = (await import("../src/routes/customers.js")).default;
 const purchaseRoutes = (await import("../src/routes/purchases.js")).default;
-const {
-  finishPasswordReset,
-  normalizeWhatsAppNumber,
-} = await import("../src/services/passwordResetService.js");
 const express = (await import("express")).default;
 const bcrypt = (await import("bcryptjs")).default;
-const originalFetch = globalThis.fetch;
-const messages = [];
-let failDelivery = false;
 let httpServer;
 
-globalThis.fetch = async (input, options) => {
-  if (String(input).startsWith("https://graph.facebook.com/")) {
-    if (failDelivery) return { ok: false, status: 503 };
-    messages.push(JSON.parse(options.body));
-    return { ok: true, status: 200 };
-  }
-  return originalFetch(input, options);
-};
-
 const app = express();
+app.set("trust proxy", true);
 app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/customers", customerRoutes);
@@ -54,206 +55,221 @@ after(async () => {
     httpServer.close((error) => error ? reject(error) : resolve());
   });
   db.db.close();
-  globalThis.fetch = originalFetch;
   rmSync(temporaryDirectory, { recursive: true, force: true });
 });
 
 async function post(route, body, headers = {}) {
-  return originalFetch(`${baseUrl}${route}`, {
+  return fetch(`${baseUrl}${route}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
 }
 
-test("admin and customer password resets use a WhatsApp OTP once and revoke sessions", async () => {
-  assert.equal(normalizeWhatsAppNumber("0812 3456 7890"), "6281234567890");
-  assert.equal(normalizeWhatsAppNumber("+1 (415) 555-2671"), "14155552671");
-  assert.equal(normalizeWhatsAppNumber("invalid"), "");
+test("existing customer accounts survive the security-question schema migration", () => {
+  const legacyCustomer = db.getCustomerByEmail("legacy-schema@example.test");
+  assert.equal(legacyCustomer.id, "legacy-schema-customer");
+  assert.equal(legacyCustomer.fullName, "Legacy Customer");
+  assert.equal(legacyCustomer.passwordHash, "existing-password-hash");
+  assert.equal(legacyCustomer.securityQuestion, null);
+  assert.equal(legacyCustomer.securityAnswerHash, null);
+});
 
+test("WhatsApp recovery endpoints are no longer available", async () => {
+  assert.equal((await post("/api/customers/forgot-password", { phone: "081222222222" })).status, 404);
+  assert.equal((await post("/api/customers/reset-password", { token: "not-a-token" })).status, 404);
+  assert.equal((await post("/api/auth/forgot-password", { phone: "081111111111" })).status, 404);
+  assert.equal((await post("/api/auth/reset-password", {})).status, 404);
+});
+
+test("security questions protect recovery, support legacy accounts, and rate-limit failures", async () => {
   db.db.prepare(`
     INSERT INTO admins (id, name, email, password, phone, is_active)
     VALUES (?, ?, ?, ?, ?, 1)
-  `).run("admin-test", "Test Admin", "admin@example.test", await bcrypt.hash("old-admin-password", 10), "6281111111111");
-
-  const customer = db.createCustomer({
+  `).run("admin-test", "Test Admin", "admin@example.test", await bcrypt.hash("admin-password", 10), "6281111111111");
+  db.createCustomer({
     id: "customer-test",
-    fullName: "Test Customer",
+    fullName: "Legacy Test Customer",
     email: "customer@example.test",
-    phone: normalizeWhatsAppNumber("081222222222"),
-    passwordHash: await bcrypt.hash("old-customer-password", 10),
-  });
-  db.createCustomerSession({
-    id: "customer-old-session",
-    customerId: customer.id,
-    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    phone: "6281222222222",
+    passwordHash: await bcrypt.hash("new-customer-password", 10),
   });
 
-  const adminLogin = await post("/api/auth/login", {
-    email: "admin@example.test",
-    password: "old-admin-password",
+  const parallelCustomer = db.createCustomer({
+    id: "customer-parallel-recovery",
+    fullName: "Parallel Recovery",
+    email: "parallel-recovery@example.test",
+    phone: "6281444444444",
+    passwordHash: await bcrypt.hash("some-password", 10),
+    securityQuestion: "birth_city",
+    securityAnswerHash: await bcrypt.hash("bandung", 10),
   });
-  assert.equal(adminLogin.status, 200);
-  const oldAdminToken = (await adminLogin.json()).token;
+  const parallelAttempts = await Promise.all(Array.from({ length: 8 }, () => post(
+    "/api/customers/forgot-password/verify",
+    {
+      email: parallelCustomer.email,
+      questionId: "birth_city",
+      answer: "wrong answer",
+    },
+    { "X-Forwarded-For": "198.51.100.40" },
+  )));
+  assert.ok(parallelAttempts.every((response) => response.status === 400));
+  const lockedAccountAttempts = db.db.prepare(`
+    SELECT attempts, locked_until AS lockedUntil
+    FROM customer_password_reset_attempts
+    WHERE attempts = 5 AND locked_until IS NOT NULL
+  `).all();
+  assert.equal(lockedAccountAttempts.length, 1);
 
-  const adminRequest = await post("/api/auth/forgot-password", { phone: "+62 811 1111 1111" });
-  assert.equal(adminRequest.status, 202);
-  assert.equal(messages.length, 1);
-  const adminOtp = messages[0].template.components[0].parameters[0].text;
-  assert.match(adminOtp, /^\d{6}$/);
-  const storedOtp = db.db.prepare(`
-    SELECT code_hash AS codeHash FROM password_reset_otps WHERE account_id = ?
-  `).get("admin-test");
-  assert.notEqual(storedOtp.codeHash, adminOtp);
-
-  const throttledAdminRequest = await post("/api/auth/forgot-password", { phone: "081111111111" });
-  assert.equal(throttledAdminRequest.status, 202);
-  assert.equal(messages.length, 1);
-
-  const wrongAdminOtp = await post("/api/auth/reset-password", {
-    phone: "081111111111",
-    otp: adminOtp === "000000" ? "000001" : "000000",
-    password: "new-admin-password",
+  const missingQuestion = await post("/api/customers/register", {
+    fullName: "Security Customer",
+    email: "security-customer@example.test",
+    phone: "081555555555",
+    password: "old-security-password",
+    confirmPassword: "old-security-password",
+    privacyConsent: true,
   });
-  assert.equal(wrongAdminOtp.status, 400);
+  assert.equal(missingQuestion.status, 400);
 
-  const adminReset = await post("/api/auth/reset-password", {
-    phone: "081111111111",
-    otp: adminOtp,
-    password: "new-admin-password",
+  const registration = await post("/api/customers/register", {
+    fullName: "Security Customer",
+    email: "security-customer@example.test",
+    phone: "081555555555",
+    password: "old-security-password",
+    confirmPassword: "old-security-password",
+    securityQuestion: "first_pet",
+    securityAnswer: "Blue   Fox",
+    privacyConsent: true,
   });
-  assert.equal(adminReset.status, 200);
+  assert.equal(registration.status, 201);
+  const registeredCookie = registration.headers.get("set-cookie").split(";")[0];
+  const newCustomer = db.getCustomerByEmail("security-customer@example.test");
+  assert.equal(newCustomer.securityQuestion, "first_pet");
+  assert.notEqual(newCustomer.securityAnswerHash, "blue fox");
+  assert.equal(await bcrypt.compare("blue fox", newCustomer.securityAnswerHash), true);
+  assert.equal(Object.hasOwn((await registration.json()).data, "securityAnswerHash"), false);
 
-  const staleAdminSession = await originalFetch(`${baseUrl}/api/auth/me`, {
-    headers: { Authorization: `Bearer ${oldAdminToken}` },
-  });
-  assert.equal(staleAdminSession.status, 403);
-  const newAdminLogin = await post("/api/auth/login", {
-    email: "admin@example.test",
-    password: "new-admin-password",
-  });
-  assert.equal(newAdminLogin.status, 200);
-
-  const customerRequest = await post("/api/customers/forgot-password", { phone: "081222222222" });
-  assert.equal(customerRequest.status, 202);
-  const customerOtp = messages[1].template.components[0].parameters[0].text;
-  assert.match(customerOtp, /^\d{6}$/);
-  const customerSession = await post("/api/customers/login", {
-    email: customer.email,
-    password: "old-customer-password",
-  });
-  assert.equal(customerSession.status, 200);
-  const customerCookie = customerSession.headers.get("set-cookie").split(";")[0];
-
-  const customerReset = await post("/api/customers/reset-password", {
-    phone: "081222222222",
-    otp: customerOtp,
+  const legacyLogin = await post("/api/customers/login", {
+    email: "customer@example.test",
     password: "new-customer-password",
-    confirmPassword: "new-customer-password",
   });
-  assert.equal(customerReset.status, 200);
-  const revokedSession = await originalFetch(`${baseUrl}/api/customers/me`, {
-    headers: { Cookie: customerCookie },
+  assert.equal(legacyLogin.status, 200);
+  const legacyCookie = legacyLogin.headers.get("set-cookie").split(";")[0];
+  const legacyQuestion = await fetch(`${baseUrl}/api/customers/me/security-question`, {
+    headers: { Cookie: legacyCookie },
+  });
+  assert.equal((await legacyQuestion.json()).data.securityQuestion, null);
+
+  const wrongCurrentPassword = await fetch(`${baseUrl}/api/customers/me/security-question`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Cookie: legacyCookie },
+    body: JSON.stringify({
+      currentPassword: "incorrect-password",
+      securityQuestion: "birth_city",
+      securityAnswer: "Jakarta",
+    }),
+  });
+  assert.equal(wrongCurrentPassword.status, 401);
+
+  const enrollLegacy = await fetch(`${baseUrl}/api/customers/me/security-question`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Cookie: legacyCookie },
+    body: JSON.stringify({
+      currentPassword: "new-customer-password",
+      securityQuestion: "birth_city",
+      securityAnswer: "Jakarta",
+    }),
+  });
+  assert.equal(enrollLegacy.status, 200);
+  assert.equal(db.getCustomerByEmail("customer@example.test").securityQuestion, "birth_city");
+
+  const unknownAccount = await post("/api/customers/forgot-password/verify", {
+    email: "unknown-security@example.test",
+    questionId: "first_pet",
+    answer: "blue fox",
+  });
+  const wrongAnswer = await post("/api/customers/forgot-password/verify", {
+    email: "security-customer@example.test",
+    questionId: "first_pet",
+    answer: "wrong answer",
+  });
+  assert.equal(unknownAccount.status, 400);
+  assert.equal(wrongAnswer.status, 400);
+  const genericFailure = await wrongAnswer.json();
+  assert.deepEqual(await unknownAccount.json(), genericFailure);
+
+  const wrongQuestion = await post("/api/customers/forgot-password/verify", {
+    email: "security-customer@example.test",
+    questionId: "birth_city",
+    answer: "blue fox",
+  });
+  assert.equal(wrongQuestion.status, 400);
+
+  const verified = await post("/api/customers/forgot-password/verify", {
+    email: "security-customer@example.test",
+    questionId: "first_pet",
+    answer: " Blue Fox ",
+  });
+  assert.equal(verified.status, 200);
+  const resetToken = (await verified.json()).data.resetToken;
+  assert.match(resetToken, /^[A-Za-z0-9_-]{43}$/);
+
+  const bypass = await post("/api/customers/forgot-password/reset", {
+    password: "reset-security-password",
+    confirmPassword: "reset-security-password",
+  });
+  assert.equal(bypass.status, 400);
+  assert.equal((await post("/api/customers/login", {
+    email: "security-customer@example.test",
+    password: "old-security-password",
+  })).status, 200);
+
+  const mismatch = await post("/api/customers/forgot-password/reset", {
+    resetToken,
+    password: "reset-security-password",
+    confirmPassword: "different-password",
+  });
+  assert.equal(mismatch.status, 400);
+  const reset = await post("/api/customers/forgot-password/reset", {
+    resetToken,
+    password: "reset-security-password",
+    confirmPassword: "reset-security-password",
+  });
+  assert.equal(reset.status, 200);
+  const revokedSession = await fetch(`${baseUrl}/api/customers/me`, {
+    headers: { Cookie: registeredCookie },
   });
   assert.equal(revokedSession.status, 401);
-  const newCustomerLogin = await post("/api/customers/login", {
-    email: customer.email,
-    password: "new-customer-password",
-  });
-  assert.equal(newCustomerLogin.status, 200);
+  assert.equal((await post("/api/customers/login", {
+    email: "security-customer@example.test",
+    password: "old-security-password",
+  })).status, 401);
+  assert.equal((await post("/api/customers/login", {
+    email: "security-customer@example.test",
+    password: "reset-security-password",
+  })).status, 200);
+  assert.equal((await post("/api/customers/forgot-password/reset", {
+    resetToken,
+    password: "another-security-password",
+    confirmPassword: "another-security-password",
+  })).status, 400);
 
-  const reusedOtp = await post("/api/customers/reset-password", {
-    phone: "081222222222",
-    otp: customerOtp,
-    password: "another-new-password",
-    confirmPassword: "another-new-password",
-  });
-  assert.equal(reusedOtp.status, 400);
-});
-
-test("unknown numbers do not send a code and provider failures are reported", async () => {
-  const unknownAccount = await post("/api/customers/forgot-password", { phone: "081299999999" });
-  assert.equal(unknownAccount.status, 202);
-  assert.equal(messages.length, 2);
-
-  db.createCustomer({
-    id: "customer-failing-delivery",
-    fullName: "Delivery Failure",
-    email: "delivery-failure@example.test",
-    phone: normalizeWhatsAppNumber("081333333333"),
-    passwordHash: await bcrypt.hash("some-password", 10),
-  });
-  const failingPhone = normalizeWhatsAppNumber("081333333333");
-  assert.equal(db.getActiveCustomersByPhone(failingPhone).length, 1);
-  assert.equal(
-    db.getPasswordResetForPhone(failingPhone, new Date(Date.now() - 60_000).toISOString()),
-    undefined,
-  );
-  failDelivery = true;
-  const deliveryFailure = await post("/api/customers/forgot-password", { phone: failingPhone });
-  assert.equal(deliveryFailure.status, 502);
-  const failedOtp = db.db.prepare(`
-    SELECT consumed_at AS consumedAt FROM password_reset_otps
-    WHERE account_id = ? ORDER BY created_at DESC LIMIT 1
-  `).get("customer-failing-delivery");
-  assert.ok(failedOtp.consumedAt);
-  failDelivery = false;
-});
-
-test("expired codes and codes with five incorrect attempts cannot reset a password", async () => {
-  const expiredPhone = normalizeWhatsAppNumber("086666666666");
-  const expiredCustomer = db.createCustomer({
-    id: "customer-expired-code",
-    fullName: "Expired Code",
-    email: "expired-code@example.test",
-    phone: expiredPhone,
-    passwordHash: await bcrypt.hash("some-password", 10),
-  });
-  const expiredRequest = await post("/api/customers/forgot-password", { phone: expiredPhone });
-  assert.equal(expiredRequest.status, 202);
-  const expiredOtp = messages.at(-1).template.components[0].parameters[0].text;
-  db.db.prepare(`
-    UPDATE password_reset_otps SET expires_at = ?
-    WHERE account_id = ?
-  `).run(new Date(Date.now() - 1000).toISOString(), expiredCustomer.id);
-  assert.equal(finishPasswordReset({
-    accountType: "customer",
-    accountId: expiredCustomer.id,
-    phone: expiredPhone,
-    otp: expiredOtp,
-    passwordHash: "not-used",
-  }), "expired");
-
-  const lockedPhone = normalizeWhatsAppNumber("087777777777");
-  const lockedCustomer = db.createCustomer({
-    id: "customer-locked-code",
-    fullName: "Locked Code",
-    email: "locked-code@example.test",
-    phone: lockedPhone,
-    passwordHash: await bcrypt.hash("some-password", 10),
-  });
-  const lockedRequest = await post("/api/customers/forgot-password", { phone: lockedPhone });
-  assert.equal(lockedRequest.status, 202);
-  const correctOtp = messages.at(-1).template.components[0].parameters[0].text;
-  const wrongOtp = correctOtp === "000000" ? "000001" : "000000";
-
-  for (let attempt = 1; attempt <= 5; attempt += 1) {
-    const result = finishPasswordReset({
-      accountType: "customer",
-      accountId: lockedCustomer.id,
-      phone: lockedPhone,
-      otp: wrongOtp,
-      passwordHash: "not-used",
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const failed = await post("/api/customers/forgot-password/verify", {
+      email: "security-customer@example.test",
+      questionId: "first_pet",
+      answer: "wrong answer",
     });
-    assert.equal(result, attempt === 5 ? "locked" : "invalid");
+    assert.equal(failed.status, 400);
+    assert.equal((await failed.json()).message, genericFailure.message);
   }
-  assert.equal(finishPasswordReset({
-    accountType: "customer",
-    accountId: lockedCustomer.id,
-    phone: lockedPhone,
-    otp: correctOtp,
-    passwordHash: "not-used",
-  }), "invalid");
+  const locked = await post("/api/customers/forgot-password/verify", {
+    email: "security-customer@example.test",
+    questionId: "first_pet",
+    answer: "blue fox",
+  });
+  assert.equal(locked.status, 400);
+  assert.deepEqual(await locked.json(), genericFailure);
 });
 
 test("order chat is available only to the order customer or an admin", async () => {
@@ -309,7 +325,7 @@ test("order chat is available only to the order customer or an admin", async () 
   assert.equal(customerMessage.status, 201);
   assert.equal((await customerMessage.json()).data.actorType, "customer");
 
-  const accountMessages = await originalFetch(`${baseUrl}/api/purchases/chat-order-test/messages`, {
+  const accountMessages = await fetch(`${baseUrl}/api/purchases/chat-order-test/messages`, {
     headers: { Cookie: customerCookie },
   });
   assert.equal(accountMessages.status, 200);
@@ -318,7 +334,7 @@ test("order chat is available only to the order customer or an admin", async () 
   }, { Cookie: customerCookie });
   assert.equal(accountMessage.status, 201);
 
-  const unauthorized = await originalFetch(`${baseUrl}/api/purchases/chat-order-test/messages`, {
+  const unauthorized = await fetch(`${baseUrl}/api/purchases/chat-order-test/messages`, {
     headers: { "X-Order-Access-Token": "cd".repeat(32) },
   });
   assert.equal(unauthorized.status, 404);
@@ -336,7 +352,7 @@ test("order chat is available only to the order customer or an admin", async () 
   assert.equal(adminMessage.status, 201);
   assert.equal((await adminMessage.json()).data.actorType, "admin");
 
-  const customerMessages = await originalFetch(`${baseUrl}/api/purchases/chat-order-test/messages`, {
+  const customerMessages = await fetch(`${baseUrl}/api/purchases/chat-order-test/messages`, {
     headers: { "X-Order-Access-Token": accessToken },
   });
   assert.equal(customerMessages.status, 200);
@@ -344,7 +360,7 @@ test("order chat is available only to the order customer or an admin", async () 
   assert.equal(messages.length, 3);
   assert.deepEqual(messages.map(({ actorType }) => actorType), ["customer", "customer", "admin"]);
 
-  const adminMessages = await originalFetch(`${baseUrl}/api/purchases/admin/chat-order-test/messages`, {
+  const adminMessages = await fetch(`${baseUrl}/api/purchases/admin/chat-order-test/messages`, {
     headers: adminHeaders,
   });
   assert.equal(adminMessages.status, 200);
