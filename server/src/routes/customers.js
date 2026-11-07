@@ -8,6 +8,12 @@ import { db } from "../db/db.js";
 import { authenticateCustomer, CUSTOMER_SESSION_COOKIE } from "../middleware/customerAuth.js";
 import { JWT_SECRET } from "../middleware/auth.js";
 import { getPaymentInstructions } from "../services/paymentService.js";
+import {
+  finishPasswordReset,
+  isWhatsAppOtpConfigured,
+  normalizeWhatsAppNumber,
+  sendPasswordResetOtp,
+} from "../services/passwordResetService.js";
 
 const router = express.Router();
 
@@ -122,13 +128,17 @@ router.post("/register", async (req, res) => {
   if (db.getAdminByEmail(email) || db.getCustomerByEmail(email)) {
     return res.status(409).json({ success: false, message: "This email address is already in use." });
   }
+  const phone = normalizePhone(body.phone);
+  if (db.getActiveCustomersByPhone(phone).length) {
+    return res.status(409).json({ success: false, message: "This WhatsApp number is already in use." });
+  }
 
   try {
     const customer = db.createCustomer({
       id: randomUUID(),
       fullName: body.fullName.trim(),
       email,
-      phone: normalizePhone(body.phone),
+      phone,
       passwordHash: await hashCustomerPassword(body.password),
     });
     const session = createCustomerToken(customer);
@@ -170,6 +180,79 @@ router.post("/login", async (req, res) => {
   });
 });
 
+router.post("/forgot-password", async (req, res) => {
+  const phone = normalizeWhatsAppNumber(req.body?.phone);
+  if (!phone) {
+    return res.status(400).json({ success: false, message: "Enter a valid WhatsApp number." });
+  }
+  if (!isWhatsAppOtpConfigured()) {
+    return res.status(503).json({
+      success: false,
+      message: "WhatsApp OTP delivery is not configured on the server.",
+    });
+  }
+
+  try {
+    const customers = db.getActiveCustomersByPhone(phone);
+    if (customers.length === 1) {
+      const [customer] = customers;
+      await sendPasswordResetOtp({ accountType: "customer", accountId: customer.id, phone });
+    }
+    return res.status(202).json({
+      success: true,
+      data: {
+        message: "If an active customer account uses this number, a reset code will be sent via WhatsApp.",
+      },
+    });
+  } catch (error) {
+    console.error("Failed to deliver the customer password reset OTP:", error.message);
+    return res.status(502).json({
+      success: false,
+      message: "The WhatsApp OTP could not be sent. Please try again later.",
+    });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  const phone = normalizeWhatsAppNumber(req.body?.phone);
+  const { otp, password, confirmPassword } = req.body || {};
+  if (!phone || typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
+    return res.status(400).json({ success: false, message: "Enter the WhatsApp number and six-digit code." });
+  }
+  if (typeof password !== "string" || Buffer.byteLength(password, "utf8") < 8 || Buffer.byteLength(password, "utf8") > 1024) {
+    return res.status(400).json({ success: false, message: "Password must be 8–1024 bytes." });
+  }
+  if (password !== confirmPassword) {
+    return res.status(400).json({ success: false, message: "Password confirmation does not match." });
+  }
+
+  const customers = db.getActiveCustomersByPhone(phone);
+  if (customers.length !== 1) {
+    return res.status(400).json({ success: false, message: "The code is invalid or expired. Request a new code." });
+  }
+  const [customer] = customers;
+
+  try {
+    const result = finishPasswordReset({
+      accountType: "customer",
+      accountId: customer.id,
+      phone,
+      otp,
+      passwordHash: await hashCustomerPassword(password),
+    });
+    if (result !== "success") {
+      return res.status(400).json({ success: false, message: "The code is invalid or expired. Request a new code." });
+    }
+    return res.json({
+      success: true,
+      data: { message: "Password reset successful. Please log in with your new password." },
+    });
+  } catch (error) {
+    console.error("Failed to reset the customer password:", error);
+    return res.status(500).json({ success: false, message: "The password could not be reset." });
+  }
+});
+
 router.get("/me", authenticateCustomer, (req, res) => {
   return res.json({ success: true, data: safeProfile(req.customer) });
 });
@@ -183,11 +266,15 @@ router.patch("/me", authenticateCustomer, (req, res) => {
   if (db.getAdminByEmail(email) || (existing && existing.id !== req.customer.id)) {
     return res.status(409).json({ success: false, message: "This email address is already in use." });
   }
+  const phone = normalizePhone(body.phone);
+  if (db.getActiveCustomersByPhone(phone).some((customer) => customer.id !== req.customer.id)) {
+    return res.status(409).json({ success: false, message: "This WhatsApp number is already in use." });
+  }
   try {
     const customer = db.updateCustomerProfile(req.customer.id, {
       fullName: body.fullName.trim(),
       email,
-      phone: normalizePhone(body.phone),
+      phone,
     });
     if (!customer) return res.status(404).json({ success: false, message: "Customer account not found." });
     return res.json({ success: true, data: safeProfile(customer) });

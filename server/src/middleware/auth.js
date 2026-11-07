@@ -47,7 +47,12 @@ export const authenticateAdmin = (req, res, next) => {
 
     try {
       const admin = db.getAdminById(sub);
-      if (!admin || admin.isActive !== 1 || admin.email !== email) {
+      if (
+        !admin
+        || admin.isActive !== 1
+        || admin.email !== email
+        || (admin.authVersion > 0 && req.user.authVersion !== admin.authVersion)
+      ) {
         return res.status(403).json({
           success: false,
           message: "The admin account is inactive or does not have access.",

@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "setup:admin": "node src/scripts/setupAdmin.js"
+    "setup:admin": "node src/scripts/setupAdmin.js",
+    "test": "node --test"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

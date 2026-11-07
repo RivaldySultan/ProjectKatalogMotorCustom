@@ -123,6 +123,7 @@ class SqliteDatabase {
       );
     `);
     this.ensureAdminColumns();
+    this.ensurePasswordResetTable();
 
     // Indexes
     this.db.exec(`
@@ -422,10 +423,34 @@ class SqliteDatabase {
     );
 
     if (!columns.has("is_active")) {
-      this.db.exec(
-        "ALTER TABLE admins ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
-      );
+      this.db.exec("ALTER TABLE admins ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1");
     }
+    if (!columns.has("phone")) {
+      this.db.exec("ALTER TABLE admins ADD COLUMN phone TEXT");
+    }
+    if (!columns.has("auth_version")) {
+      this.db.exec("ALTER TABLE admins ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0");
+    }
+  }
+
+  ensurePasswordResetTable() {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS password_reset_otps (
+        id TEXT PRIMARY KEY,
+        account_type TEXT NOT NULL CHECK (account_type IN ('admin', 'customer')),
+        account_id TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        code_hash TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        consumed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_password_reset_lookup
+        ON password_reset_otps(account_type, account_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_password_reset_phone
+        ON password_reset_otps(phone, created_at DESC);
+    `);
   }
 
   seedInitialData() {
@@ -514,7 +539,9 @@ class SqliteDatabase {
   getAdmin() {
     return this.db
       .prepare(
-        "SELECT id, name, email, password, is_active AS isActive FROM admins LIMIT 1",
+        `SELECT id, name, email, password, phone,
+          is_active AS isActive, auth_version AS authVersion
+        FROM admins LIMIT 1`,
       )
       .get();
   }
@@ -522,7 +549,9 @@ class SqliteDatabase {
   getAdminById(id) {
     return this.db
       .prepare(
-        "SELECT id, name, email, is_active AS isActive FROM admins WHERE id = ?",
+        `SELECT id, name, email, phone, is_active AS isActive,
+          auth_version AS authVersion
+        FROM admins WHERE id = ?`,
       )
       .get(id);
   }
@@ -549,6 +578,138 @@ class SqliteDatabase {
         created_at AS createdAt, updated_at AS updatedAt
       FROM customers WHERE email = ? COLLATE NOCASE
     `).get(email);
+  }
+
+  getActiveCustomersByPhone(phone) {
+    return this.db.prepare(`
+      SELECT id, full_name AS fullName, email, phone,
+        password_hash AS passwordHash, is_active AS isActive,
+        created_at AS createdAt, updated_at AS updatedAt
+      FROM customers WHERE phone = ? AND is_active = 1
+    `).all(phone);
+  }
+
+  getPasswordResetForPhone(phone, since) {
+    return this.db.prepare(`
+      SELECT id FROM password_reset_otps
+      WHERE phone = ? AND datetime(created_at) >= datetime(?)
+      ORDER BY created_at DESC LIMIT 1
+    `).get(phone, since);
+  }
+
+  createPasswordResetOtp({ id, accountType, accountId, phone, codeHash, expiresAt }) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.prepare(`
+        UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP
+        WHERE account_type = ? AND account_id = ? AND consumed_at IS NULL
+      `).run(accountType, accountId);
+      this.db.prepare(`
+        INSERT INTO password_reset_otps
+          (id, account_type, account_id, phone, code_hash, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(id, accountType, accountId, phone, codeHash, expiresAt);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  invalidatePasswordResetOtp(id) {
+    this.db.prepare(`
+      UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND consumed_at IS NULL
+    `).run(id);
+  }
+
+  completePasswordReset({ accountType, accountId, phone, codeHash, passwordHash }) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const otp = this.db.prepare(`
+        SELECT id, code_hash AS codeHash, expires_at AS expiresAt,
+          attempts, consumed_at AS consumedAt
+        FROM password_reset_otps
+        WHERE account_type = ? AND account_id = ? AND phone = ?
+        ORDER BY created_at DESC LIMIT 1
+      `).get(accountType, accountId, phone);
+
+      if (!otp || otp.consumedAt) {
+        this.db.exec("COMMIT");
+        return "invalid";
+      }
+
+      if (Date.parse(otp.expiresAt) <= Date.now()) {
+        this.db.prepare(`
+          UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?
+        `).run(otp.id);
+        this.db.exec("COMMIT");
+        return "expired";
+      }
+
+      if (otp.attempts >= 5) {
+        this.db.prepare(`
+          UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?
+        `).run(otp.id);
+        this.db.exec("COMMIT");
+        return "locked";
+      }
+
+      const provided = Buffer.from(codeHash, "hex");
+      const expected = Buffer.from(otp.codeHash, "hex");
+      const matches = provided.length === expected.length
+        && timingSafeEqual(provided, expected);
+
+      if (!matches) {
+        const attempts = otp.attempts + 1;
+        this.db.prepare(`
+          UPDATE password_reset_otps SET attempts = ?,
+            consumed_at = CASE WHEN ? >= 5 THEN CURRENT_TIMESTAMP ELSE consumed_at END
+          WHERE id = ?
+        `).run(attempts, attempts, otp.id);
+        this.db.exec("COMMIT");
+        return attempts >= 5 ? "locked" : "invalid";
+      }
+
+      const used = this.db.prepare(`
+        UPDATE password_reset_otps SET consumed_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND consumed_at IS NULL
+      `).run(otp.id);
+      if (!used.changes) {
+        this.db.exec("COMMIT");
+        return "invalid";
+      }
+
+      if (accountType === "admin") {
+        const updated = this.db.prepare(`
+          UPDATE admins SET password = ?, auth_version = auth_version + 1
+          WHERE id = ? AND phone = ? AND is_active = 1
+        `).run(passwordHash, accountId, phone);
+        if (!updated.changes) {
+          this.db.exec("ROLLBACK");
+          return "invalid";
+        }
+      } else {
+        const updated = this.db.prepare(`
+          UPDATE customers SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND phone = ? AND is_active = 1
+        `).run(passwordHash, accountId, phone);
+        if (!updated.changes) {
+          this.db.exec("ROLLBACK");
+          return "invalid";
+        }
+        this.db.prepare(`
+          UPDATE customer_sessions SET revoked_at = CURRENT_TIMESTAMP
+          WHERE customer_id = ? AND revoked_at IS NULL
+        `).run(accountId);
+      }
+
+      this.db.exec("COMMIT");
+      return "success";
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   createCustomer({ id, fullName, email, phone, passwordHash }) {
@@ -596,13 +757,14 @@ class SqliteDatabase {
     `).run(id, customerId).changes > 0;
   }
 
-  bootstrapAdmin({ id, name, email, password }) {
+  bootstrapAdmin({ id, name, email, password, phone }) {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const normalizedEmail = email.trim().toLowerCase();
       const admins = this.db
         .prepare(
-          "SELECT id, email, password, name, is_active AS isActive FROM admins",
+          `SELECT id, email, password, name, phone, is_active AS isActive
+          FROM admins`,
         )
         .all();
 
@@ -626,9 +788,10 @@ class SqliteDatabase {
       if (!existingAdmin) {
         this.db
           .prepare(
-            "INSERT INTO admins (id, name, email, password, is_active) VALUES (?, ?, ?, ?, 1)",
+            `INSERT INTO admins (id, name, email, password, phone, is_active)
+            VALUES (?, ?, ?, ?, ?, 1)`,
           )
-          .run(id, name, normalizedEmail, bcrypt.hashSync(password, 10));
+          .run(id, name, normalizedEmail, bcrypt.hashSync(password, 10), phone || null);
         result = "created";
       } else {
         const passwordMatches = bcrypt.compareSync(
@@ -638,16 +801,18 @@ class SqliteDatabase {
         if (
           !passwordMatches ||
           existingAdmin.name !== name ||
-          existingAdmin.isActive !== 1
+          existingAdmin.isActive !== 1 ||
+          (phone && existingAdmin.phone !== phone)
         ) {
           const passwordHash = passwordMatches
             ? existingAdmin.password
             : bcrypt.hashSync(password, 10);
           this.db
             .prepare(
-              "UPDATE admins SET name = ?, email = ?, password = ?, is_active = 1 WHERE id = ?",
+              `UPDATE admins SET name = ?, email = ?, password = ?, phone = COALESCE(?, phone),
+                is_active = 1, auth_version = auth_version + 1 WHERE id = ?`,
             )
-            .run(name, normalizedEmail, passwordHash, existingAdmin.id);
+            .run(name, normalizedEmail, passwordHash, phone || null, existingAdmin.id);
           result = "updated";
         } else {
           result = "unchanged";

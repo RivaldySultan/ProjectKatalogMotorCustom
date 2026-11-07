@@ -1,10 +1,13 @@
 import "../loadEnv.js";
 import { randomUUID } from "node:crypto";
 import { db } from "../db/db.js";
+import { normalizeWhatsAppNumber } from "../services/passwordResetService.js";
 
 const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const password = process.env.ADMIN_PASSWORD;
 const name = process.env.ADMIN_NAME?.trim() || "Admin Ruka";
+const configuredPhone = process.env.ADMIN_PHONE?.trim();
+const phone = configuredPhone ? normalizeWhatsAppNumber(configuredPhone) : "";
 
 if (!email || !password) {
   console.error("Set ADMIN_EMAIL and ADMIN_PASSWORD in server/.env first.");
@@ -24,6 +27,9 @@ if (!email || !password) {
 ) {
   console.error("Set a random JWT_SECRET of at least 32 bytes in server/.env.");
   process.exitCode = 1;
+} else if (configuredPhone && !phone) {
+  console.error("ADMIN_PHONE must be a valid WhatsApp number with 10–15 digits.");
+  process.exitCode = 1;
 } else {
   try {
     const result = db.bootstrapAdmin({
@@ -31,6 +37,7 @@ if (!email || !password) {
       name,
       email,
       password,
+      phone,
     });
 
     const message = {

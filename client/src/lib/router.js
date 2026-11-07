@@ -79,6 +79,10 @@ export function parseLocation(location) {
     return { ...base, name: 'customer-auth', mode: pathname.slice(1) };
   }
 
+  if (pathname === '/lupa-password') {
+    return { ...base, name: 'password-reset', accountType: 'customer' };
+  }
+
   if (pathname === '/akun') {
     return { ...base, name: 'customer-account', mode: 'profile' };
   }
@@ -103,6 +107,10 @@ export function parseLocation(location) {
 
   if (pathname === '/admin/login') {
     return { ...base, name: 'admin-login' };
+  }
+
+  if (pathname === '/admin/forgot-password') {
+    return { ...base, name: 'password-reset', accountType: 'admin' };
   }
 
   if (pathname === '/admin/catalog') {

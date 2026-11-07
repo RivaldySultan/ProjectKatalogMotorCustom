@@ -14,6 +14,7 @@ import AdminPurchasesPage from './pages/AdminPurchasesPage';
 import CustomerPurchasePage from './pages/CustomerPurchasePage';
 import CustomerAuthPage from './pages/CustomerAuthPage';
 import CustomerAccountPage from './pages/CustomerAccountPage';
+import PasswordResetPage from './pages/PasswordResetPage';
 import './App.css';
 
 function PublicPages({ route }) {
@@ -66,6 +67,11 @@ function App() {
 
   if (route.name === 'admin-login') {
     return <AdminLoginPage sessionExpired={route.hash === '#session-expired'} />;
+  }
+
+  if (route.name === 'password-reset') {
+    const page = <PasswordResetPage accountType={route.accountType} />;
+    return route.accountType === 'admin' ? page : <PublicLayout>{page}</PublicLayout>;
   }
 
   if (route.name === 'customer-purchase') {

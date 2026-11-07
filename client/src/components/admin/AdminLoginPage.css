@@ -125,7 +125,7 @@
 
 .rm-admin-login__back {
   color: var(--rm-color-muted);
-  display: inline-block;
+  display: table;
   font-size: 11px;
   margin-top: 24px;
   text-decoration: underline;

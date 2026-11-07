@@ -102,6 +102,11 @@ export default function CustomerAuthPage({ mode }) {
         <button className="rm-button rm-button--primary" disabled={submitting} type="submit">
           {submitting ? 'Processing...' : isRegister ? 'Create account' : 'Log in'}
         </button>
+        {!isRegister ? (
+          <p className="rm-customer-auth__switch">
+            <Link to="/lupa-password">Forgot your password?</Link>
+          </p>
+        ) : null}
         <p className="rm-customer-auth__switch">
           {isRegister ? 'Already have an account?' : 'Do not have an account yet?'}{' '}
           <Link to={isRegister ? '/login' : '/register'}>{isRegister ? 'Log In' : 'Register'}</Link>
