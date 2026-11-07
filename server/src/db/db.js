@@ -101,6 +101,7 @@ class SqliteDatabase {
 
     this.ensureOrderColumns();
     this.ensureCustomerTables();
+    this.ensureConsultationChatTables();
     this.ensurePurchaseOrderTable();
 
     // 4. Settings Key-Value Table
@@ -442,6 +443,7 @@ class SqliteDatabase {
       reference_motor_image: "TEXT",
       reference_motor_selected: "INTEGER NOT NULL DEFAULT 0",
       consent: "INTEGER NOT NULL DEFAULT 0",
+      customer_id: "TEXT REFERENCES customers(id) ON DELETE SET NULL",
     };
 
     for (const [name, type] of Object.entries(additions)) {
@@ -449,6 +451,22 @@ class SqliteDatabase {
         this.db.exec(`ALTER TABLE orders ADD COLUMN ${name} ${type}`);
       }
     }
+  }
+
+  ensureConsultationChatTables() {
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id, created_at DESC);
+      CREATE TABLE IF NOT EXISTS consultation_messages (
+        id TEXT PRIMARY KEY,
+        consultation_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        actor_type TEXT NOT NULL CHECK (actor_type IN ('customer', 'admin')),
+        actor_id TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_consultation_messages_order
+        ON consultation_messages(consultation_id, created_at, id);
+    `);
   }
 
   ensureAdminColumns() {
@@ -2157,8 +2175,9 @@ class SqliteDatabase {
         reference_product_name, reference_build_name, reference_build_code,
         reference_category, reference_basis, reference_price,
         reference_motor_id, reference_motor_name, reference_motor_build_name,
-        reference_motor_basis, reference_motor_image, reference_motor_selected, consent
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        reference_motor_basis, reference_motor_image, reference_motor_selected, consent,
+        customer_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     this.db.exec("BEGIN IMMEDIATE");
@@ -2189,6 +2208,7 @@ class SqliteDatabase {
         referenceMotor?.image || null,
         1,
         1,
+        consultation.customerId,
       );
       this.db.exec("COMMIT");
     } catch (error) {
@@ -2308,6 +2328,51 @@ class SqliteDatabase {
       statusOptions,
       photos: photos.map((_, index) => `/api/consultations/${encodeURIComponent(id)}/photos/${index}`),
     };
+  }
+
+  getCustomerConsultations(customerId) {
+    return this.db.prepare(`
+      SELECT id, name AS customerName, phone, email, city,
+        build_interest AS buildInterest, budget AS budgetRange,
+        message AS requirements, donor_motor AS donorMotor,
+        reference_product_name AS productName,
+        reference_build_name AS buildName,
+        status, created_at AS createdAt
+      FROM orders
+      WHERE customer_id = ?
+      ORDER BY created_at DESC, id DESC
+    `).all(customerId);
+  }
+
+  getConsultationCustomerId(id) {
+    return this.db.prepare(
+      "SELECT customer_id AS customerId FROM orders WHERE id = ?",
+    ).get(id)?.customerId || null;
+  }
+
+  getConsultationMessages(consultationId) {
+    return this.db.prepare(`
+      SELECT id, actor_type AS actorType, actor_id AS actorId,
+        message, created_at AS createdAt
+      FROM consultation_messages
+      WHERE consultation_id = ?
+      ORDER BY rowid ASC
+    `).all(consultationId);
+  }
+
+  createConsultationMessage({ consultationId, actorType, actorId, message }) {
+    const id = randomUUID();
+    this.db.prepare(`
+      INSERT INTO consultation_messages (
+        id, consultation_id, actor_type, actor_id, message
+      ) VALUES (?, ?, ?, ?, ?)
+    `).run(id, consultationId, actorType, actorId, message);
+    return this.db.prepare(`
+      SELECT id, actor_type AS actorType, actor_id AS actorId,
+        message, created_at AS createdAt
+      FROM consultation_messages
+      WHERE id = ?
+    `).get(id);
   }
 
   getConsultationPhotoPath(id, index) {

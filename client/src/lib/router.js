@@ -91,6 +91,10 @@ export function parseLocation(location) {
     return { ...base, name: 'customer-account', mode: 'orders' };
   }
 
+  if (pathname === '/akun/konsultasi') {
+    return { ...base, name: 'customer-account', mode: 'consultations' };
+  }
+
   const accountOrderMatch = pathname.match(/^\/akun\/pesanan\/([^/]+)$/);
   if (accountOrderMatch) {
     return {

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../ui/Icon';
+import Link from '../ui/Link';
 import { getWhatsAppLink } from '../../lib/whatsapp';
+import { useCustomerSession } from '../../lib/customerAuth';
 import {
   formatRupiah,
   getActiveProducts,
@@ -82,6 +84,7 @@ export default function ConsultationForm({
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [referenceImageFailed, setReferenceImageFailed] = useState(false);
+  const customerSession = useCustomerSession();
   const submitting = useRef(false);
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
@@ -216,6 +219,7 @@ export default function ConsultationForm({
       const response = await fetch('/api/consultations', {
         method: 'POST',
         body: formData,
+        credentials: 'same-origin',
       });
       const result = await response.json().catch(() => null);
 
@@ -230,7 +234,7 @@ export default function ConsultationForm({
         return;
       }
 
-      setSuccess(`Your consultation request was saved as ${result.data.id}. Ruka will contact you.`);
+      setSuccess(`Your consultation request was saved. You can now chat with Ruka from your account.`);
       setFields({ ...EMPTY_FIELDS, referenceMotorId: defaultReferenceId });
       setReferenceImageFailed(false);
       photos.forEach(({ preview }) => {
@@ -289,8 +293,34 @@ export default function ConsultationForm({
       {success ? (
         <div aria-live="polite" className="rm-consult-success" role="status">
           <span aria-hidden="true">✓</span>
-          <p>{success}</p>
+          <p>{success} <Link to="/akun/konsultasi">View consultations</Link></p>
         </div>
+      ) : customerSession.status !== 'authenticated' ? (
+        <section aria-label="Customer login required" className="rm-consult-login">
+          {customerSession.status === 'unknown' || customerSession.status === 'checking' ? (
+            <p>Checking your account session...</p>
+          ) : customerSession.status === 'unavailable' ? (
+            <p role="alert">Your account could not be verified. Reload the page or contact us via WhatsApp.</p>
+          ) : (
+            <>
+              <p>Log in or create a customer account to submit a web consultation and chat with Ruka.</p>
+              <div className="rm-consult-login__actions">
+                <Link
+                  className="rm-button rm-button--primary"
+                  to={`/login?return=${encodeURIComponent(`${window.location.pathname}${window.location.search}${window.location.hash}`)}`}
+                >
+                  Customer Log In
+                </Link>
+                <Link
+                  className="rm-consult-login__register"
+                  to={`/register?return=${encodeURIComponent(`${window.location.pathname}${window.location.search}${window.location.hash}`)}`}
+                >
+                  Create Account
+                </Link>
+              </div>
+            </>
+          )}
+        </section>
       ) : (
         <form className="rm-consult-form" onSubmit={handleSubmit} ref={formRef}>
           {formError ? <p className="rm-consult-form__error" role="alert">{formError}</p> : null}
@@ -526,21 +556,21 @@ export default function ConsultationForm({
             {isSubmitting ? 'Saving request...' : 'Submit Consultation Request'}
             {!isSubmitting ? <Icon name="arrow-up-right" size={18} /> : null}
           </button>
-          <a
-            className="rm-consult-whatsapp"
-            href={consultationWhatsAppLink}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <span>Consult directly via WhatsApp</span>
-            <Icon name="arrow-up-right" size={18} />
-          </a>
-          <p className="rm-consult-required-note">
-            WhatsApp opens a message draft and does not submit or save this web form.
-          </p>
           <p className="rm-consult-required-note">* Required</p>
         </form>
       )}
+      <a
+        className="rm-consult-whatsapp"
+        href={consultationWhatsAppLink}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <span>Consult directly via WhatsApp — no account required</span>
+        <Icon name="arrow-up-right" size={18} />
+      </a>
+      <p className="rm-consult-required-note">
+        WhatsApp opens a message draft and does not submit or save this web form.
+      </p>
     </div>
   );
 }

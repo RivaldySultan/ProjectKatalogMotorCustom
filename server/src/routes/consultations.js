@@ -6,6 +6,7 @@ import express from "express";
 import multer from "multer";
 import { db } from "../db/db.js";
 import { authenticateAdmin } from "../middleware/auth.js";
+import { authenticateCustomer } from "../middleware/customerAuth.js";
 
 const router = express.Router();
 const uploadDirectory = path.join(
@@ -213,6 +214,46 @@ router.get("/:id/photos/:index", authenticateAdmin, async (req, res) => {
   }
 });
 
+router.get("/:id/messages", authenticateAdmin, (req, res) => {
+  try {
+    if (!db.getConsultationById(req.params.id)) {
+      return res.status(404).json({ success: false, message: "Consultation request not found." });
+    }
+    return res.json({
+      success: true,
+      data: { messages: db.getConsultationMessages(req.params.id) },
+    });
+  } catch (error) {
+    console.error("Failed to load consultation messages:", error);
+    return res.status(500).json({ success: false, message: "Consultation messages could not be loaded." });
+  }
+});
+
+router.post("/:id/messages", authenticateAdmin, (req, res) => {
+  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  if (!message || message.length > 2000) {
+    return res.status(400).json({
+      success: false,
+      message: "Message is required and must not exceed 2,000 characters.",
+    });
+  }
+  try {
+    if (!db.getConsultationById(req.params.id)) {
+      return res.status(404).json({ success: false, message: "Consultation request not found." });
+    }
+    const data = db.createConsultationMessage({
+      consultationId: req.params.id,
+      actorType: "admin",
+      actorId: req.admin.id,
+      message,
+    });
+    return res.status(201).json({ success: true, data });
+  } catch (error) {
+    console.error("Failed to send consultation message:", error);
+    return res.status(500).json({ success: false, message: "Consultation message could not be sent." });
+  }
+});
+
 router.get("/:id", authenticateAdmin, (req, res) => {
   try {
     const consultation = db.getConsultationById(req.params.id);
@@ -320,7 +361,7 @@ router.delete("/:id", authenticateAdmin, async (req, res) => {
   }
 });
 
-router.post("/", (req, res, next) => {
+router.post("/", authenticateCustomer, (req, res, next) => {
   upload.array("photos", 3)(req, res, (error) => {
     if (!error) return next();
 
@@ -395,6 +436,7 @@ router.post("/", (req, res, next) => {
 
     const stored = db.createConsultation({
       id,
+      customerId: req.customer.id,
       ...values,
       productId: product.id,
       productName: product.name,

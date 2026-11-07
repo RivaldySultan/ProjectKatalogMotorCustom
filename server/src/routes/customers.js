@@ -360,6 +360,67 @@ router.post("/logout", authenticateCustomer, (req, res) => {
   return res.json({ success: true });
 });
 
+router.get("/consultations", authenticateCustomer, (req, res) => {
+  try {
+    return res.json({
+      success: true,
+      data: db.getCustomerConsultations(req.customer.id),
+    });
+  } catch (error) {
+    console.error("Failed to load customer consultations:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Your consultation requests could not be loaded.",
+    });
+  }
+});
+
+router.get("/consultations/:id/messages", authenticateCustomer, (req, res) => {
+  try {
+    if (db.getConsultationCustomerId(req.params.id) !== req.customer.id) {
+      return res.status(404).json({ success: false, message: "Consultation request not found." });
+    }
+    return res.json({
+      success: true,
+      data: { messages: db.getConsultationMessages(req.params.id) },
+    });
+  } catch (error) {
+    console.error("Failed to load customer consultation messages:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Consultation messages could not be loaded.",
+    });
+  }
+});
+
+router.post("/consultations/:id/messages", authenticateCustomer, (req, res) => {
+  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  if (!message || message.length > 2000) {
+    return res.status(400).json({
+      success: false,
+      message: "Message is required and must not exceed 2,000 characters.",
+    });
+  }
+  try {
+    if (db.getConsultationCustomerId(req.params.id) !== req.customer.id) {
+      return res.status(404).json({ success: false, message: "Consultation request not found." });
+    }
+    const data = db.createConsultationMessage({
+      consultationId: req.params.id,
+      actorType: "customer",
+      actorId: req.customer.id,
+      message,
+    });
+    return res.status(201).json({ success: true, data });
+  } catch (error) {
+    console.error("Failed to send customer consultation message:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Consultation message could not be sent.",
+    });
+  }
+});
+
 router.get("/orders", authenticateCustomer, (req, res) => {
   const page = Math.max(1, Math.min(100000, Number.parseInt(req.query.page, 10) || 1));
   const pageSize = Math.max(1, Math.min(50, Number.parseInt(req.query.pageSize, 10) || 10));

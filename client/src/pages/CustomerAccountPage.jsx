@@ -82,6 +82,7 @@ function AccountNavigation({ selected }) {
     <nav aria-label="Account navigation" className="rm-account__nav">
       <Link aria-current={selected === 'profile' ? 'page' : undefined} to="/akun">Profile</Link>
       <Link aria-current={selected === 'orders' || selected === 'detail' ? 'page' : undefined} to="/akun/pesanan">My Orders</Link>
+      <Link aria-current={selected === 'consultations' ? 'page' : undefined} to="/akun/konsultasi">My Consultations</Link>
     </nav>
   );
 }
@@ -451,6 +452,71 @@ function OrdersPage() {
   );
 }
 
+function ConsultationsPage() {
+  const [consultations, setConsultations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    customerRequest('/api/customers/consultations')
+      .then((result) => {
+        if (!active) return;
+        if (!result.ok) {
+          setError(result.message || 'Consultation requests could not be loaded.');
+          return;
+        }
+        setConsultations(result.data || []);
+      })
+      .catch((requestError) => {
+        console.error('Failed to load customer consultations:', requestError);
+        if (active) setError('Consultation requests could not be loaded.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <>
+      <header className="rm-account__welcome">
+        <p className="rm-eyebrow">CUSTOMER AREA</p>
+        <h1>MY CONSULTATIONS</h1>
+        <p>Continue your build conversations with Ruka here.</p>
+      </header>
+      <AccountNavigation selected="consultations" />
+      {error ? <p className="rm-account__error" role="alert">{error}</p> : null}
+      {loading ? <p className="rm-account__muted">Loading consultations...</p> : null}
+      {!loading && !error && !consultations.length ? (
+        <section className="rm-account__panel">
+          <h2>No consultations yet</h2>
+          <p className="rm-account__muted">Submit a web consultation from a motorcycle page to start chatting with Ruka.</p>
+          <Link className="rm-account__text-link" to="/katalog">Browse the catalog</Link>
+        </section>
+      ) : null}
+      {consultations.map((consultation) => (
+        <section aria-labelledby={`consultation-${consultation.id}`} className="rm-account__panel" key={consultation.id}>
+          <div className="rm-account__panel-heading">
+            <div>
+              <p className="rm-meta">BUILD CONSULTATION / {formattedDate(consultation.createdAt)}</p>
+              <h2 id={`consultation-${consultation.id}`}>
+                {consultation.buildName || consultation.productName || 'Custom build'}
+              </h2>
+            </div>
+            <span>{consultation.status || 'Recorded'}</span>
+          </div>
+          <dl className="rm-account__fields">
+            <div><dt>City</dt><dd>{consultation.city || '—'}</dd></div>
+            <div><dt>Budget range</dt><dd>{consultation.budgetRange || '—'}</dd></div>
+            <div><dt>Donor motorcycle</dt><dd>{consultation.donorMotor || '—'}</dd></div>
+            <div><dt>Requirements</dt><dd>{consultation.requirements || '—'}</dd></div>
+          </dl>
+          <OrderChat conversationType="consultation" orderId={consultation.id} viewer="customer" />
+        </section>
+      ))}
+    </>
+  );
+}
+
 function OrderDetailPage({ orderId }) {
   const [order, setOrder] = useState(null);
   const [proofs, setProofs] = useState([]);
@@ -669,7 +735,13 @@ function OrderDetailPage({ orderId }) {
 export default function CustomerAccountPage({ route }) {
   const { status, user } = useCustomerSession();
   const mode = route.mode || 'profile';
-  usePageTitle(mode === 'orders' ? 'My Orders — RUKA Motorworks' : 'My Account — RUKA Motorworks');
+  usePageTitle(
+    mode === 'orders'
+      ? 'My Orders — RUKA Motorworks'
+      : mode === 'consultations'
+        ? 'My Consultations — RUKA Motorworks'
+        : 'My Account — RUKA Motorworks',
+  );
 
   return (
     <main className="rm-account rm-container" id="main-content" tabIndex={-1}>
@@ -678,6 +750,7 @@ export default function CustomerAccountPage({ route }) {
       {status === 'unauthenticated' ? <AccountGate /> : null}
       {status === 'authenticated' && mode === 'profile' ? <AccountHome user={user} /> : null}
       {status === 'authenticated' && mode === 'orders' ? <OrdersPage /> : null}
+      {status === 'authenticated' && mode === 'consultations' ? <ConsultationsPage /> : null}
       {status === 'authenticated' && mode === 'detail' ? <OrderDetailPage orderId={route.id} /> : null}
     </main>
   );

@@ -77,6 +77,33 @@
   margin: 16px 0 28px;
 }
 
+.rm-consult-login {
+  background: var(--rm-color-paper-panel);
+  border: 1px solid var(--rm-color-paper-line);
+  color: var(--rm-color-paper-ink);
+  padding: 20px;
+}
+
+.rm-consult-login > p {
+  color: var(--rm-color-paper-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.rm-consult-login__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.rm-consult-login__register {
+  color: var(--rm-color-paper-ink);
+  font-size: 12px;
+}
+
 .rm-consult-form {
   display: grid;
   gap: 20px;

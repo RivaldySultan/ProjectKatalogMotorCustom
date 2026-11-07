@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '../components/admin/AdminLayout';
 import Icon from '../components/ui/Icon';
 import Link from '../components/ui/Link';
+import OrderChat from '../components/ui/OrderChat';
 import { adminRequest, clearAdminSession, getAdminToken } from '../lib/adminAuth';
 import { formatRupiah } from '../lib/products';
 import { navigate } from '../lib/router';
@@ -536,6 +537,9 @@ function ConsultationDetailPage({ id }) {
               )}
             </section>
           </div>
+          <section aria-label="Consultation chat" className="rm-admin-panel">
+            <OrderChat conversationType="consultation" orderId={consultation.id} viewer="admin" />
+          </section>
         </>
       ) : null}
     </AdminLayout>

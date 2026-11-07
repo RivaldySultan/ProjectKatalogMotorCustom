@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { adminRequest, clearAdminSession } from '../../lib/adminAuth';
+import { customerRequest } from '../../lib/customerAuth';
 import { navigate } from '../../lib/router';
 import './OrderChat.css';
 
@@ -20,11 +21,16 @@ function updateMessages(setMessages, incoming) {
   });
 }
 
-export default function OrderChat({ orderId, viewer, accessToken = '' }) {
+export default function OrderChat({ orderId, viewer, accessToken = '', conversationType = 'order' }) {
   const isAdmin = viewer === 'admin';
+  const isConsultation = conversationType === 'consultation';
   const endpoint = isAdmin
-    ? `/api/purchases/admin/${encodeURIComponent(orderId)}/messages`
-    : `/api/purchases/${encodeURIComponent(orderId)}/messages`;
+    ? isConsultation
+      ? `/api/consultations/${encodeURIComponent(orderId)}/messages`
+      : `/api/purchases/admin/${encodeURIComponent(orderId)}/messages`
+    : isConsultation
+      ? `/api/customers/consultations/${encodeURIComponent(orderId)}/messages`
+      : `/api/purchases/${encodeURIComponent(orderId)}/messages`;
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -40,6 +46,13 @@ export default function OrderChat({ orderId, viewer, accessToken = '' }) {
         clearAdminSession();
         navigate('/admin/login#session-expired');
       }
+      if (result.ok && active()) {
+        updateMessages(setMessages, result.data?.messages || []);
+        setError('');
+      }
+      if (!result.ok && active()) setError(result.message || 'Messages could not be loaded.');
+    } else if (isConsultation) {
+      result = await customerRequest(endpoint);
       if (result.ok && active()) {
         updateMessages(setMessages, result.data?.messages || []);
         setError('');
@@ -65,7 +78,7 @@ export default function OrderChat({ orderId, viewer, accessToken = '' }) {
       }
     }
     if (active()) setLoading(false);
-  }, [accessToken, endpoint, isAdmin]);
+  }, [accessToken, endpoint, isAdmin, isConsultation]);
 
   useEffect(() => {
     let active = true;
@@ -102,6 +115,11 @@ export default function OrderChat({ orderId, viewer, accessToken = '' }) {
         clearAdminSession();
         navigate('/admin/login#session-expired');
       }
+    } else if (isConsultation) {
+      result = await customerRequest(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({ message }),
+      });
     } else {
       try {
         const headers = { 'Content-Type': 'application/json' };
@@ -137,8 +155,12 @@ export default function OrderChat({ orderId, viewer, accessToken = '' }) {
     <section aria-labelledby={`rm-order-chat-title-${orderId}`} className={`rm-order-chat${isAdmin ? ' rm-order-chat--admin' : ''}`}>
       <header className="rm-order-chat__heading">
         <div>
-          <p className="rm-order-chat__eyebrow">{isAdmin ? 'CUSTOMER SUPPORT' : 'ORDER SUPPORT'}</p>
-          <h2 id={`rm-order-chat-title-${orderId}`}>Chat about this order</h2>
+          <p className="rm-order-chat__eyebrow">
+            {isConsultation ? 'BUILD CONSULTATION' : isAdmin ? 'CUSTOMER SUPPORT' : 'ORDER SUPPORT'}
+          </p>
+          <h2 id={`rm-order-chat-title-${orderId}`}>
+            {isConsultation ? 'Chat about this consultation' : 'Chat about this order'}
+          </h2>
         </div>
         <p>Replies refresh automatically.</p>
       </header>
@@ -168,7 +190,7 @@ export default function OrderChat({ orderId, viewer, accessToken = '' }) {
           id={`rm-order-chat-input-${orderId}`}
           maxLength={2000}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="Ask us about this order..."
+          placeholder={isConsultation ? 'Ask us about your build...' : 'Ask us about this order...'}
           required
           rows={3}
           value={draft}
