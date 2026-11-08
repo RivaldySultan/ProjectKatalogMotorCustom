@@ -4,6 +4,7 @@ import { establishCustomerSession, customerRequest } from '../lib/customerAuth';
 import { navigate } from '../lib/router';
 import { usePageTitle } from '../lib/usePageTitle';
 import { SECURITY_QUESTIONS } from '../lib/securityQuestions';
+import { useToast } from '../components/ui/useToast';
 import './CustomerAuthPage.css';
 
 const EMPTY_VALUES = {
@@ -23,6 +24,7 @@ export default function CustomerAuthPage({ mode }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const notify = useToast();
 
   usePageTitle(`${isRegister ? 'Create Account' : 'Customer Login'} — RUKA Motorworks`);
 
@@ -36,6 +38,7 @@ export default function CustomerAuthPage({ mode }) {
     setError('');
     if (isRegister && values.password !== values.confirmPassword) {
       setError('Password confirmation does not match.');
+      notify('Password confirmation does not match.', 'error');
       return;
     }
 
@@ -50,9 +53,11 @@ export default function CustomerAuthPage({ mode }) {
     setSubmitting(false);
     if (!result.ok) {
       setError(result.message || 'Your account could not be processed.');
+      notify(result.message || 'Your account could not be processed.', 'error');
       return;
     }
     establishCustomerSession(result.data);
+    notify(isRegister ? 'Your account was created successfully.' : 'You are now logged in.');
     const returnTo = new URLSearchParams(window.location.search).get('return');
     navigate(returnTo?.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/akun');
   };

@@ -7,6 +7,7 @@ import { formatRupiah } from '../lib/products';
 import { navigate } from '../lib/router';
 import { usePageTitle } from '../lib/usePageTitle';
 import OrderChat from '../components/ui/OrderChat';
+import { useToast } from '../components/ui/useToast';
 import './AdminPurchasesPage.css';
 
 const PAGE_SIZE = 10;
@@ -50,6 +51,7 @@ const ORDER_STATUS_LABELS = {
 };
 
 function PurchaseList() {
+  const notify = useToast();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
@@ -71,8 +73,10 @@ function PurchaseList() {
     setDeletingOrderId('');
     if (!result.ok) {
       setError(getAdminError(result, 'The order could not be cancelled.'));
+      notify(result.message || 'The order could not be cancelled.', 'error');
       return;
     }
+    notify(`Order ${order.orderNumber} cancelled successfully.`);
     setOrders((current) => current.filter((item) => item.id !== order.id));
     setPagination((current) => ({ ...current, total: Math.max(0, current.total - 1) }));
     if (orders.length === 1 && page > 1) {
@@ -214,6 +218,7 @@ function PurchaseList() {
 }
 
 function PurchaseDetail({ id }) {
+  const notify = useToast();
   const [order, setOrder] = useState(null);
   const [proofUrl, setProofUrl] = useState('');
   const [shippingCost, setShippingCost] = useState('');
@@ -325,11 +330,14 @@ function PurchaseDetail({ id }) {
     setNotice('');
     const result = await adminRequest(url, options);
     if (!result.ok) {
-      setError(getAdminError(result, 'Order changes could not be saved.'));
+      const message = getAdminError(result, 'Order changes could not be saved.');
+      setError(message);
+      notify(message || 'Order changes could not be saved.', 'error');
       setSaving(false);
       return;
     }
     setNotice(successMessage);
+    notify(successMessage);
     if (redirectToList) {
       setSaving(false);
       navigate('/admin/purchases');

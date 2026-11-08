@@ -10,6 +10,7 @@ import {
   getProductBuildName,
 } from '../lib/products';
 import { usePageTitle } from '../lib/usePageTitle';
+import { useToast } from '../components/ui/useToast';
 import './AdminCatalogPage.css';
 
 const EMPTY_PRODUCT = {
@@ -59,6 +60,7 @@ export default function AdminProductForm({ mode, id }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
+  const notify = useToast();
   const previewUrlRef = useRef('');
 
   usePageTitle(`${isEditing ? 'Edit Motorcycle' : 'Add Motorcycle'} — RUKA Motorworks`);
@@ -170,9 +172,13 @@ export default function AdminProductForm({ mode, id }) {
     setError('');
     if (!isEditing && !file) {
       setFileError('A main photo is required when adding a new motorcycle.');
+      notify('A main photo is required when adding a new motorcycle.', 'error');
       return;
     }
-    if (fileError) return;
+    if (fileError) {
+      notify(fileError, 'error');
+      return;
+    }
 
     setIsSaving(true);
     const body = new FormData();
@@ -197,9 +203,15 @@ export default function AdminProductForm({ mode, id }) {
       }
       if (!result.ok) {
         setError(result.message);
+        notify(result.message || 'Motorcycle could not be saved.', 'error');
         return;
       }
+      notify(isEditing ? 'Motorcycle updated successfully.' : 'Motorcycle added successfully.');
       navigate('/admin/catalog');
+    } catch (requestError) {
+      console.error('Failed to save motorcycle:', requestError);
+      setError('Unable to connect to the server. Motorcycle was not saved.');
+      notify('Unable to connect. Motorcycle was not saved.', 'error');
     } finally {
       setIsSaving(false);
     }

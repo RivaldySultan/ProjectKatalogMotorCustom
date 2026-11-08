@@ -655,6 +655,40 @@
   max-width: 520px;
 }
 
+.rm-home__name-expansion {
+  border-left: 2px solid var(--rm-color-brick);
+  margin-top: 22px;
+  padding-left: 14px;
+}
+
+.rm-home__name-expansion > p {
+  color: var(--rm-color-muted);
+  font-family: var(--rm-font-mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  margin: 0 0 7px;
+  text-transform: uppercase;
+}
+
+.rm-home__name-expansion > div {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+}
+
+.rm-home__name-expansion > div > span {
+  color: var(--rm-color-ivory);
+  font-family: var(--rm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.rm-home__name-expansion > div > span:nth-child(even) {
+  color: var(--rm-color-brick);
+}
+
 .rm-home__workshop-heading ul {
   display: flex;
   flex-wrap: wrap;

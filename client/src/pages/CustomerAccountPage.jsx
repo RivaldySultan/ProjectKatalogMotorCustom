@@ -5,6 +5,7 @@ import { formatRupiah, getCatalogProductImage } from '../lib/products';
 import { usePageTitle } from '../lib/usePageTitle';
 import { SECURITY_QUESTIONS } from '../lib/securityQuestions';
 import OrderChat from '../components/ui/OrderChat';
+import { useToast } from '../components/ui/useToast';
 import './CustomerAccountPage.css';
 
 const STATUS_LABELS = {
@@ -101,6 +102,7 @@ function AccountGate() {
 }
 
 function ProfilePage({ user }) {
+  const notify = useToast();
   const [values, setValues] = useState({
     fullName: user.fullName || '',
     email: user.email || '',
@@ -140,11 +142,13 @@ function ProfilePage({ user }) {
     setSaving(false);
     if (!result.ok) {
       setError(result.message || 'Profile could not be updated.');
+      notify(result.message || 'Profile could not be updated.', 'error');
       return;
     }
     establishCustomerSession(result.data);
     setEditing(false);
     setNotice('Profile updated.');
+    notify('Profile updated successfully.');
   };
 
   const saveSecurityQuestion = async (event) => {
@@ -159,12 +163,14 @@ function ProfilePage({ user }) {
     setSavingSecurity(false);
     if (!result.ok) {
       setSecurityError(result.message || 'Security question could not be saved.');
+      notify(result.message || 'Security question could not be saved.', 'error');
       return;
     }
     setSecurityQuestion(result.data.securityQuestion);
     setSecurityAnswer('');
     setCurrentPassword('');
     setSecurityNotice('Security question saved. You can use it to reset your password.');
+    notify('Security question saved successfully.');
   };
 
   return (
@@ -275,6 +281,7 @@ function AccountHome({ user }) {
 }
 
 function OrdersPage() {
+  const notify = useToast();
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0, totalPages: 0 });
   const [status, setStatus] = useState('');
@@ -319,6 +326,7 @@ function OrdersPage() {
       );
       if (!result.ok) {
         setError(result.message || 'Order receipt could not be confirmed.');
+        notify(result.message || 'Order receipt could not be confirmed.', 'error');
         return;
       }
       setOrders((current) => current.map((item) => (
@@ -326,9 +334,11 @@ function OrdersPage() {
           ? { ...item, customerReceivedAt: result.data.customerReceivedAt }
           : item
       )));
+      notify('Order receipt confirmed successfully.');
     } catch (requestError) {
       console.error('Failed to confirm customer order receipt:', requestError);
       setError('Unable to connect to the server. Order receipt was not confirmed.');
+      notify('Unable to connect. Order receipt was not confirmed.', 'error');
     } finally {
       setConfirmingOrderId('');
     }
@@ -345,6 +355,7 @@ function OrdersPage() {
       );
       if (!result.ok) {
         setError(result.message || 'Order history could not be removed.');
+        notify(result.message || 'Order history could not be removed.', 'error');
         return;
       }
       setOrders((current) => current.filter((item) => item.id !== order.id));
@@ -358,9 +369,11 @@ function OrdersPage() {
           page: Math.min(current.page, Math.max(1, totalPages)),
         };
       });
+      notify('Order removed from your history.');
     } catch (requestError) {
       console.error('Failed to remove customer order history:', requestError);
       setError('Unable to connect to the server. Order history was not removed.');
+      notify('Unable to connect. Order history was not removed.', 'error');
     } finally {
       setDeletingOrderId('');
     }
@@ -518,6 +531,7 @@ function ConsultationsPage() {
 }
 
 function OrderDetailPage({ orderId }) {
+  const notify = useToast();
   const [order, setOrder] = useState(null);
   const [proofs, setProofs] = useState([]);
   const [file, setFile] = useState(null);
@@ -590,11 +604,13 @@ function OrderDetailPage({ orderId }) {
     if (!selected) return;
     if (!['image/jpeg', 'image/png'].includes(selected.type)) {
       setError('Payment proof must be a JPG or PNG image.');
+      notify('Payment proof must be a JPG or PNG image.', 'error');
       event.target.value = '';
       return;
     }
     if (selected.size > 5 * 1024 * 1024) {
       setError('Payment proof must not exceed 5 MB.');
+      notify('Payment proof must not exceed 5 MB.', 'error');
       event.target.value = '';
       return;
     }
@@ -618,16 +634,20 @@ function OrderDetailPage({ orderId }) {
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.success) {
-        setError(result?.message || 'Payment proof could not be submitted.');
+        const message = result?.message || 'Payment proof could not be submitted.';
+        setError(message);
+        notify(message, 'error');
         return;
       }
       setOrder(result.data);
       setFile(null);
       setPreview('');
       setNotice('Payment proof updated and awaiting admin review.');
+      notify('Payment proof uploaded successfully and is awaiting review.');
     } catch (requestError) {
       console.error('Failed to submit customer payment proof:', requestError);
       setError('Unable to connect to the server. Payment proof was not submitted.');
+      notify('Unable to connect. Payment proof was not submitted.', 'error');
     } finally {
       setUploading(false);
     }

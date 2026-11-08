@@ -17,7 +17,8 @@ const VISITOR_LINKS = [
 ];
 
 const CUSTOMER_LINKS = [
-  { to: '/katalog', label: 'Motorcycle Catalog' },
+  { to: '/', label: 'Home' },
+  ...VISITOR_LINKS,
   { to: '/akun/pesanan', label: 'My Orders' },
   { to: '/akun', label: 'My Account' },
 ];
@@ -28,6 +29,9 @@ const ADMIN_LINKS = [
 ];
 
 function isLinkActive(link, route) {
+  if (link.to === '/') {
+    return route.name === 'home' && !route.hash;
+  }
   if (link.to === '/katalog') {
     return route.name === 'catalog' || route.name === 'detail';
   }

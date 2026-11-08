@@ -182,7 +182,7 @@
   width: 100%;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1199px) {
   .rm-navbar__inner {
     grid-template-columns: 1fr auto;
   }

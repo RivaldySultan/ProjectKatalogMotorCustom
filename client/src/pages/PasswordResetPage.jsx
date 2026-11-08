@@ -4,6 +4,7 @@ import { customerRequest } from '../lib/customerAuth';
 import { navigate } from '../lib/router';
 import { SECURITY_QUESTIONS } from '../lib/securityQuestions';
 import { usePageTitle } from '../lib/usePageTitle';
+import { useToast } from '../components/ui/useToast';
 import './PasswordResetPage.css';
 
 export default function PasswordResetPage() {
@@ -18,6 +19,7 @@ export default function PasswordResetPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const notify = useToast();
 
   usePageTitle('Forgot Password — Customer — RUKA Motorworks');
 
@@ -45,11 +47,13 @@ export default function PasswordResetPage() {
     setSubmitting(false);
     if (!result.ok) {
       setError(result.message || 'The information could not be verified. Check your details and try again.');
+      notify(result.message || 'The information could not be verified.', 'error');
       return;
     }
     setResetToken(result.data.resetToken);
     setAnswer('');
     setStage('password');
+    notify('Security answer verified.');
   };
 
   const resetPassword = async (event) => {
@@ -58,6 +62,7 @@ export default function PasswordResetPage() {
     setError('');
     if (password !== confirmPassword) {
       setError('Password confirmation does not match.');
+      notify('Password confirmation does not match.', 'error');
       return;
     }
     setSubmitting(true);
@@ -68,11 +73,13 @@ export default function PasswordResetPage() {
     setSubmitting(false);
     if (!result.ok) {
       setError(result.message || 'The password could not be reset.');
+      notify(result.message || 'The password could not be reset.', 'error');
       return;
     }
     setResetToken('');
     setComplete(true);
     setNotice(result.data.message);
+    notify('Your password was reset successfully.');
   };
 
   const title = complete

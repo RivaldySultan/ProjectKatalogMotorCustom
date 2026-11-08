@@ -7,6 +7,7 @@ import { adminRequest, clearAdminSession, getAdminToken } from '../lib/adminAuth
 import { formatRupiah } from '../lib/products';
 import { navigate } from '../lib/router';
 import { usePageTitle } from '../lib/usePageTitle';
+import { useToast } from '../components/ui/useToast';
 import { getWhatsAppLink, WHATSAPP_MESSAGE } from '../lib/whatsapp';
 import './AdminOrdersPage.css';
 
@@ -277,6 +278,7 @@ function OrdersListPage() {
 }
 
 function ConsultationDetailPage({ id }) {
+  const notify = useToast();
   const [consultation, setConsultation] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -371,15 +373,15 @@ function ConsultationDetailPage({ id }) {
       body: JSON.stringify({ status: selectedStatus }),
     });
     if (!result.ok) {
-      setLoadResult({
-        id,
-        error: getAdminError(result, 'Consultation status could not be updated.'),
-      });
+      const message = getAdminError(result, 'Consultation status could not be updated.');
+      setLoadResult({ id, error: message });
+      notify(message, 'error');
     } else {
       setConsultation(result.data);
       setSelectedStatus(result.data.status);
       setStatusMessage(result.message || 'Consultation status updated.');
       setLoadResult({ id, error: '' });
+      notify(result.message || 'Consultation status updated successfully.');
     }
     setIsSavingStatus(false);
   };

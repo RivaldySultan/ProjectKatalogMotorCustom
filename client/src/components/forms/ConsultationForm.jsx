@@ -3,6 +3,7 @@ import Icon from '../ui/Icon';
 import Link from '../ui/Link';
 import { getWhatsAppLink } from '../../lib/whatsapp';
 import { useCustomerSession } from '../../lib/customerAuth';
+import { useToast } from '../ui/useToast';
 import {
   formatRupiah,
   getActiveProducts,
@@ -85,6 +86,7 @@ export default function ConsultationForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [referenceImageFailed, setReferenceImageFailed] = useState(false);
   const customerSession = useCustomerSession();
+  const notify = useToast();
   const submitting = useRef(false);
   const fileInputRef = useRef(null);
   const formRef = useRef(null);
@@ -148,6 +150,7 @@ export default function ConsultationForm({
 
     if (photos.length + selected.length > 3) {
       setErrors((current) => ({ ...current, photos: 'You can upload up to 3 photos.' }));
+      notify('You can upload up to 3 photos.', 'error');
       return;
     }
 
@@ -160,6 +163,7 @@ export default function ConsultationForm({
         ? `${invalidFile.name}: use a JPG or PNG image.`
         : `${invalidFile.name}: image size must not exceed 5 MB.`;
       setErrors((current) => ({ ...current, photos: message }));
+      notify(message, 'error');
       return;
     }
 
@@ -188,6 +192,7 @@ export default function ConsultationForm({
     setSuccess('');
 
     if (Object.keys(validationErrors).length) {
+      notify('Please check the highlighted fields before submitting.', 'error');
       requestAnimationFrame(() => {
         formRef.current?.querySelector('[aria-invalid="true"]')?.focus();
       });
@@ -231,10 +236,12 @@ export default function ConsultationForm({
           result?.message
           || `Your consultation request was not saved (${response.status}). Your form data is still available; please try again.`,
         );
+        notify(result?.message || 'Your consultation request could not be submitted.', 'error');
         return;
       }
 
       setSuccess(`Your consultation request was saved. You can now chat with Ruka from your account.`);
+      notify('Consultation request submitted successfully.');
       setFields({ ...EMPTY_FIELDS, referenceMotorId: defaultReferenceId });
       setReferenceImageFailed(false);
       photos.forEach(({ preview }) => {
@@ -246,6 +253,7 @@ export default function ConsultationForm({
     } catch (error) {
       console.error('Failed to submit consultation request:', error);
       setFormError('Unable to connect to the server. Your form data is still available; check your connection and try again.');
+      notify('Unable to connect. Your consultation request was not submitted.', 'error');
     } finally {
       submitting.current = false;
       setIsSubmitting(false);

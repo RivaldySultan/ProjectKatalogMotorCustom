@@ -346,6 +346,18 @@ export default function HomePage({ products, isLoading, error }) {
                 love clean joints, honest materials, and design that still makes
                 sense to ride.
               </p>
+              <div aria-label="RUKA stands for Restoration Upgrade Kustom Automotive" className="rm-home__name-expansion">
+                <p>THE NAME, IN FULL</p>
+                <div>
+                  <span>Restoration</span>
+                  <span aria-hidden="true">/</span>
+                  <span>Upgrade</span>
+                  <span aria-hidden="true">/</span>
+                  <span>Kustom</span>
+                  <span aria-hidden="true">/</span>
+                  <span>Automotive</span>
+                </div>
+              </div>
               <ul>
                 {WORKSHOP_VALUES.map((value) => <li key={value}>{value}</li>)}
               </ul>

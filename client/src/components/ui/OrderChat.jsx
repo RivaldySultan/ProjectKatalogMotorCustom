@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { adminRequest, clearAdminSession } from '../../lib/adminAuth';
 import { customerRequest } from '../../lib/customerAuth';
 import { navigate } from '../../lib/router';
+import { useToast } from './useToast';
 import './OrderChat.css';
 
 function formatMessageDate(value) {
@@ -36,6 +37,7 @@ export default function OrderChat({ orderId, viewer, accessToken = '', conversat
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const notify = useToast();
   const bottomRef = useRef(null);
 
   const loadMessages = useCallback(async (active = () => true) => {
@@ -143,12 +145,14 @@ export default function OrderChat({ orderId, viewer, accessToken = '', conversat
     setSending(false);
     if (!result.ok) {
       setError(result.message || 'Message could not be sent.');
+      notify(result.message || 'Message could not be sent.', 'error');
       return;
     }
     setMessages((current) => current.some((item) => item.id === result.data.id)
       ? current
       : [...current, result.data]);
     setDraft('');
+    notify('Message sent successfully.');
   };
 
   return (

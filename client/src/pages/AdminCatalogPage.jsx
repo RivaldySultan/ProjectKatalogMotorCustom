@@ -14,6 +14,7 @@ import {
 import { usePageTitle } from '../lib/usePageTitle';
 import AdminProductForm from './AdminProductForm';
 import './AdminCatalogPage.css';
+import { useToast } from '../components/ui/useToast';
 
 function ProductTable({ products, onDelete }) {
   return (
@@ -141,6 +142,7 @@ export default function AdminCatalogPage({ route }) {
 }
 
 function AdminCatalogListPage() {
+  const notify = useToast();
   const [products, setProducts] = useState([]);
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -212,10 +214,12 @@ function AdminCatalogListPage() {
     }
     if (!result.ok) {
       setDeleteError(result.message);
+      notify(result.message || 'Motorcycle could not be deleted.', 'error');
       return;
     }
     setProducts((current) => current.filter((product) => product.id !== productToDelete.id));
     setNotice(`${productToDelete.name} was removed from the catalog.`);
+    notify(`${productToDelete.name} was removed from the catalog.`);
     setProductToDelete(null);
   };
 

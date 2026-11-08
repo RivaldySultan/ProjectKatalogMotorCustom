@@ -12,6 +12,7 @@ import { navigate } from '../lib/router';
 import { usePageTitle } from '../lib/usePageTitle';
 import { customerRequest, useCustomerSession } from '../lib/customerAuth';
 import { createUuid } from '../lib/uuid';
+import { useToast } from '../components/ui/useToast';
 import './CheckoutPage.css';
 
 const EMPTY_CUSTOMER = {
@@ -62,6 +63,7 @@ export default function CheckoutPage({ productId, products, isLoading }) {
   const productList = Array.isArray(products) ? products : [];
   const product = productList.find((item) => item && String(item.id) === String(productId));
   const customerSession = useCustomerSession();
+  const notify = useToast();
   const checkoutPath = `/checkout/${encodeURIComponent(productId)}`;
   const [values, setValues] = useState(EMPTY_CUSTOMER);
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -172,10 +174,12 @@ export default function CheckoutPage({ productId, products, isLoading }) {
     setNotice('');
     if (!product || product.canPurchase !== 1) {
       setErrorMessage('This build is not available for direct purchase.');
+      notify('This build is not available for direct purchase.', 'error');
       return;
     }
     if (!paymentMethods.some((method) => method?.method === values.paymentMethod)) {
       setErrorMessage('No transfer methods are configured. The order was not created.');
+      notify('No transfer methods are configured. The order was not created.', 'error');
       return;
     }
 
@@ -208,6 +212,7 @@ export default function CheckoutPage({ productId, products, isLoading }) {
         getLocalOrderKey(productId),
         JSON.stringify({ orderId: result.data.id, token: result.data.accessToken }),
       );
+      notify('Order created successfully.');
       navigate(`/pesanan/${encodeURIComponent(result.data.id)}#${result.data.accessToken}`);
     } catch (requestError) {
       console.error('Failed to create purchase order:', requestError);
@@ -216,6 +221,12 @@ export default function CheckoutPage({ productId, products, isLoading }) {
         typeof message === 'string' && message.trim()
           ? message
           : 'The order could not be created. Check your connection and try again; your form data is still saved.',
+      );
+      notify(
+        typeof message === 'string' && message.trim()
+          ? message
+          : 'The order could not be created. Check your connection and try again.',
+        'error',
       );
     } finally {
       setIsCreating(false);
@@ -233,11 +244,13 @@ export default function CheckoutPage({ productId, products, isLoading }) {
     if (!selected) return;
     if (!['image/jpeg', 'image/png'].includes(selected.type)) {
       setErrorMessage('Payment proof must be a JPG or PNG image.');
+      notify('Payment proof must be a JPG or PNG image.', 'error');
       event.target.value = '';
       return;
     }
     if (selected.size > 5 * 1024 * 1024) {
       setErrorMessage('Payment proof must not exceed 5 MB.');
+      notify('Payment proof must not exceed 5 MB.', 'error');
       event.target.value = '';
       return;
     }
@@ -265,9 +278,11 @@ export default function CheckoutPage({ productId, products, isLoading }) {
       setProof(null);
       setProofPreview('');
       setNotice('Payment proof received and awaiting admin review. This does not mark the order as paid.');
+      notify('Payment proof uploaded successfully and is awaiting review.');
     } catch (requestError) {
       console.error('Failed to submit payment proof:', requestError);
       setErrorMessage(requestError.message || 'Payment proof could not be submitted.');
+      notify(requestError.message || 'Payment proof could not be submitted.', 'error');
     } finally {
       setIsUploading(false);
     }

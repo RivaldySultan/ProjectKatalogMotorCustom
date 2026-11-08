@@ -7,6 +7,7 @@ import { customerRequest, useCustomerSession } from '../lib/customerAuth';
 import { navigate } from '../lib/router';
 import './CustomerPurchasePage.css';
 import OrderChat from '../components/ui/OrderChat';
+import { useToast } from '../components/ui/useToast';
 
 const STATUS_LABELS = {
   pending_approval: 'Awaiting Ruka approval',
@@ -79,6 +80,7 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState('');
   const customerSession = useCustomerSession();
+  const notify = useToast();
   const orderStatus = getStatus(order || {});
   const whatsappLink = useMemo(() => order && getWhatsAppLink([
     `Hello Ruka Motorworks, I have a question about order ${order.orderNumber}.`,
@@ -180,11 +182,13 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
     if (!selected) return;
     if (!['image/jpeg', 'image/png'].includes(selected.type)) {
       setError('Payment proof must be a JPG or PNG image.');
+      notify('Payment proof must be a JPG or PNG image.', 'error');
       event.target.value = '';
       return;
     }
     if (selected.size > 5 * 1024 * 1024) {
       setError('Payment proof must not exceed 5 MB.');
+      notify('Payment proof must not exceed 5 MB.', 'error');
       event.target.value = '';
       return;
     }
@@ -212,9 +216,11 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
       setProof(null);
       setProofPreview('');
       setNotice('Payment proof received and awaiting admin review. This does not mark the order as paid.');
+      notify('Payment proof uploaded successfully and is awaiting review.');
     } catch (requestError) {
       console.error('Failed to submit payment proof:', requestError);
       setError(requestError.message || 'Payment proof could not be submitted.');
+      notify(requestError.message || 'Payment proof could not be submitted.', 'error');
     } finally {
       setUploading(false);
     }
@@ -240,8 +246,10 @@ export default function CustomerPurchasePage({ orderId, accessToken }) {
     setClaiming(false);
     if (!result.ok) {
       setClaimError(result.message || 'The order could not be linked to your account.');
+      notify(result.message || 'The order could not be linked to your account.', 'error');
       return;
     }
+    notify('Order linked to your account successfully.');
     navigate(`/akun/pesanan/${encodeURIComponent(order.id)}`);
   };
 

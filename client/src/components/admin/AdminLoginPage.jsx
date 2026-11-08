@@ -5,12 +5,14 @@ import { navigate } from '../../lib/router';
 import { saveAdminSession, useAdminSession } from '../../lib/adminAuth';
 import { usePageTitle } from '../../lib/usePageTitle';
 import './AdminLoginPage.css';
+import { useToast } from '../ui/useToast';
 
 export default function AdminLoginPage({ sessionExpired = false }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const notify = useToast();
   const adminSession = useAdminSession();
 
   usePageTitle('Admin Login — RUKA Motorworks');
@@ -28,6 +30,7 @@ export default function AdminLoginPage({ sessionExpired = false }) {
 
     if (!email.trim() || !password) {
       setError('Email and password are required.');
+      notify('Email and password are required.', 'error');
       return;
     }
 
@@ -42,14 +45,17 @@ export default function AdminLoginPage({ sessionExpired = false }) {
 
       if (!response.ok || !result?.success || !result.token || !result.user) {
         setError(result?.message || `Login failed (${response.status}).`);
+        notify(result?.message || `Login failed (${response.status}).`, 'error');
         return;
       }
 
       saveAdminSession(result.token, result.user);
+      notify('Admin login successful.');
       navigate('/admin/dashboard');
     } catch (requestError) {
       console.error('Failed to reach the admin login service:', requestError);
       setError('Unable to connect to the server. Check your connection and try again.');
+      notify('Unable to connect to the server. Admin login failed.', 'error');
     } finally {
       setIsSubmitting(false);
     }
